@@ -1,26 +1,20 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from "vite"
+import vue from "@vitejs/plugin-vue"
+import express from "vite-plugin-express"
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    express({
+      middlewareFiles: ["src/server/api.ts"]
+    })
+  ],
   resolve: {
     alias: {
-      '@': '/src'
+      "@": "/src"
     }
-  },
-  build: {
-    sourcemap: false // or 'inline'
   },
   optimizeDeps: {
-    exclude: ['@material/*'] // Optional: skip optimizing MDC packages
-  },
-  server: {
-    proxy: {
-      '/words': 'http://localhost:3000',
-      '/sentences': 'http://localhost:3000',
-      '/symbols': 'http://localhost:3000',
-      '/instances': 'http://localhost:3000',
-      '/symbol-history': 'http://localhost:3000',
-    }
+    exclude: ["@material/*"]
   }
 })

@@ -74,7 +74,7 @@ export default defineComponent({
     },
     isDebug: {
       type: Boolean,
-      default: false
+      default: true
     },
   },
   mounted() {

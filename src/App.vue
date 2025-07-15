@@ -22,9 +22,15 @@ const words = ref<Word[]>([])
 const sentences = ref<Sentence[]>([])
 const symbols = ref<SymbolMeaning[]>([])
 
-// onMounted(async () => {
+onMounted(async () => {
+  const res = await fetch('/api/symbols')
+  console.log("@1", res)
+  const symbols = await res.text()
+  console.log("@2", symbols)
+
+
 //   words.value = await loadWords()
 //   sentences.value = await loadSentences()
 //   symbols.value = await loadSymbols()
-// })
+})
 </script>
