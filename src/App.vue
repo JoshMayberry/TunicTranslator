@@ -4,7 +4,7 @@
     <NavigationBar class="mdc-top-app-bar--fixed-adjust" />
     
     <main class="p-4">
-      <router-view :words="words" :sentences="sentences" :symbols="symbols" />
+      <router-view />
     </main>
   </div>
 </template>
@@ -16,17 +16,13 @@ import { onMounted, ref } from 'vue'
 // import { loadWords, loadSentences, loadSymbols } from './services/api'
 // import SaveAllPending from './components/SaveAllPending.vue'
 // import { autoSync } from './stores/settings'
-import type { Word, Sentence, SymbolMeaning } from './types/models'
 
-const words = ref<Word[]>([])
-const sentences = ref<Sentence[]>([])
-const symbols = ref<SymbolMeaning[]>([])
 
 onMounted(async () => {
-  const res = await fetch('/api/symbols')
-  console.log("@1", res)
-  const symbols = await res.text()
-  console.log("@2", symbols)
+  // const res = await fetch('/api/symbols')
+  // console.log("@1", res)
+  // const symbols = await res.text()
+  // console.log("@2", symbols)
 
 
 //   words.value = await loadWords()

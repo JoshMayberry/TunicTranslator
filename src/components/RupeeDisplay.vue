@@ -1,6 +1,6 @@
 <template>
   <div class="p-4 bg-white rounded shadow space-y-2">
-    <canvas ref="emeraldCanvas" class="" :width="width + margin*2" :height="height*1.3 + margin*2"></canvas>
+    <canvas ref="emeraldCanvas" :class="isWord ? 'rupee-canvas--is-word' : ''" :width="width + margin*2" :height="height*1.3 + margin*2"></canvas>
   </div>
 </template>
 
@@ -14,7 +14,7 @@ import { Rupee } from "@/models/Rupee"
 // })
 
 
-const testRupee = Rupee.fromRepresentation(82)
+const testRupee = Rupee.fromRepresentation(0)
 
 interface Coord {
     x: number
@@ -32,14 +32,19 @@ interface Circledo {
 }
 
 export default defineComponent({
-  name: "Rupee",
-  data(): { state: Rupee, ctx?: CanvasRenderingContext2D, segments: Segment[], circledo?: Circledo, word_segment?: Segment } {
+  name: "RupeeDisplay",
+  data(): { ctx?: CanvasRenderingContext2D, segments: Segment[], circledo?: Circledo, word_segment?: Segment } {
     return {
-      state: testRupee,
       segments: [],
     }
   },
+  emits: ["update:rupee", "update:rupee:value", "update:rupee"],
   props: {
+    rupee: {
+      type: Object as () => Rupee,
+      // required: true,
+      default: testRupee
+    },
     width: {
       type: Number,
       default: 100
@@ -76,14 +81,26 @@ export default defineComponent({
       type: Boolean,
       default: true
     },
+    isWord: {
+      type: Boolean,
+      default: true
+    },
+    disabled: {
+      type: Boolean,
+      default: false
+    },
   },
   mounted() {
     const canvas = this.getCanvas();
-    canvas.addEventListener(
-        "mousedown",
-        this.mouse_start,
-        false
-    );
+
+    if (this.isInteractive) {
+      canvas.removeEventListener("mousedown", this.mouse_start); // Prevent this function from being added multiple times for every remount
+      canvas.addEventListener(
+          "mousedown",
+          this.mouse_start,
+          false
+      );
+    }
 
     this.updateCanvasContext();
     this.change_size();
@@ -94,15 +111,26 @@ export default defineComponent({
        return this.width*2;
     }
   },
+  watch: {
+    rupee: {
+      handler() {
+        this.update();
+      },
+      immediate: false,  // Wait until mounted to listen
+      deep: false
+    }
+  },
   methods: {
     updateCanvasContext() {
       const canvas = this.getCanvas();
       if (!canvas) {
+        console.error("Missing Canvas!")
         return;
       }
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
+        console.error("Missing Canvas Context!")
         return;
       }
       this.ctx = ctx;
@@ -212,10 +240,10 @@ export default defineComponent({
 
         // Word Segment
 
-        this.word_segment = {
+        this.word_segment = this.isWord ? {
           a: {x: (this.width / 2) * 0, y: (this.height / 6) * 3},
           b: {x: (this.width / 2) * 2, y: (this.height / 6) * 3},
-        };
+        } : undefined;
 
         // Circledo
 
@@ -228,7 +256,6 @@ export default defineComponent({
         const canvas = this.getCanvas(); 
         this.ctx!.clearRect(0, 0, canvas.width, canvas.height);
     },
-
     draw_circle(circledo: Circledo, color: string) {
         this.ctx!.strokeStyle = color;
         this.ctx!.lineWidth = this.linewidth;
@@ -236,7 +263,6 @@ export default defineComponent({
         this.ctx!.arc(circledo.center.x, circledo.center.y, circledo.radius, 0, 2 * Math.PI);
         this.ctx!.stroke();
     },
-
     draw_background() {
         this.clear();
         for (let [i, segment] of this.segments.entries()) {
@@ -251,7 +277,6 @@ export default defineComponent({
             );
         }
     },
-
     draw_line(segment: Segment, color: string) {
         this.ctx!.strokeStyle = color;
         this.ctx!.lineWidth = this.linewidth;
@@ -271,7 +296,8 @@ export default defineComponent({
 
         this.draw_background();
 
-        const value = this.state.representation(true, false);
+        const value = (this.disabled ? 0 : this.rupee.representation(true));
+        // console.log("Drawing Rupee:", value)
 
         // Draw highlighted segments
         let i = 0;
@@ -331,23 +357,27 @@ export default defineComponent({
     },
 
     mouse_start(e: MouseEvent) {
-        console.log("@mouse_start")
-        if (this.isInteractive != true) return;
-        e.preventDefault();
-        let pos = this.getCursorPosition(e);
-        this.toggle_segment(pos);
-        },
+      if (this.disabled || (this.isInteractive != true)) {
+        return;
+      }
+      e.preventDefault();
+      let pos = this.getCursorPosition(e);
+      this.toggle_segment(pos);
+    },
 
-        toggle_segment(p: Coord) {
-        let value = this.state.representation()
-        for (let i = 0; i < this.segments.length; i++) {
-            if (this.is_close(p, this.segments[i])) {
-            value ^= 1 << i;
-            break;
-            }
-        }
-        this.state = Rupee.fromRepresentation(value);
-        this.update();
+    toggle_segment(p: Coord) {
+      let value = this.rupee.representation(true)
+      for (let i = 0; i < this.segments.length; i++) {
+          if (this.is_close(p, this.segments[i])) {
+          value ^= 1 << i;
+          break;
+          }
+      }
+
+      // The parent will need to update it, which will trigger an update flow.
+      const updated = Rupee.fromRepresentation(value);
+      this.$emit('update:rupee', updated);
+      this.$emit('update:rupee:value', value);
     },
 
     is_close(p: Coord, l: Segment) {
@@ -365,3 +395,10 @@ export default defineComponent({
   }
 });
 </script>
+
+<style scoped>
+.rupee-canvas--is-word {
+  margin-left: -9px;
+  margin-right: -9px;
+}
+</style>

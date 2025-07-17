@@ -3,5 +3,5 @@
 </template>
 
 <script setup lang="ts">
-import Rupee from './Rupee.vue';
+import Rupee from './RupeeDisplay.vue';
 </script>

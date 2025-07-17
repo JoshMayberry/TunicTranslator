@@ -1,9 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import GlobalDashboard from '../components/GlobalDashboard.vue'
-import WordList from '../components/WordList.vue'
-import RupeeList from '../components/RupeeList.vue'
-// import SentenceEditor from '../components/SentenceEditor.vue'
-// import Settings from '../components/Settings.vue'
+import SentenceViewer from '../components/SentenceViewer.vue'
+import SoundList from '../components/SoundList.vue'
+import SentenceList from '../components/SentenceList.vue'
 
 
 export const routeDefinitions = [
@@ -14,28 +13,25 @@ export const routeDefinitions = [
     meta: { navigationLabel: 'Dashboard' }
   },
   {
-    path: '/rupees',
-    props: true,
-    component: RupeeList,
-    meta: { navigationLabel: 'Rupees' }
+    path: '/sound-list',
+    component: SoundList,
+    meta: { navigationLabel: 'Sounds' }
   },
   {
-    path: '/words',
-    props: true,
-    component: WordList,
-    meta: { navigationLabel: 'Words' }
+    path: '/sentence-list',
+    component: SentenceList,
+    meta: { navigationLabel: 'Sentences' }
   },
-  // {
-  //   path: '/sentences',
-  //   component: SentenceEditor,
-  //   props: true,
-  //   meta: { navigationLabel: 'Sentences' }
-  // },
-  // {
-  //   path: '/settings',
-  //   component: Settings,
-  //   meta: { navigationLabel: 'Settings' }
-  // }
+  {
+    path: '/sentence-viewer/:id?',
+    component: SentenceViewer,
+    meta: { navigationLabel: 'Viewer' }
+  },
+  {
+    path: '/settings',
+    component: SentenceViewer,
+    meta: { navigationLabel: 'Settings' }
+  }
 ]
 
 const router = createRouter({

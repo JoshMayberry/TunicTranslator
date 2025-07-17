@@ -16,7 +16,6 @@ export interface RupeeSegmentState {
     center?: boolean       // 100000000000
   }
   bottomCircle?: boolean   // 1000000000000
-  joiner?: boolean
 }
 
 export interface SymbolMeaning {

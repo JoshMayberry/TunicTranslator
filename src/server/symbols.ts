@@ -22,7 +22,7 @@ export function saveSymbolHistory(symbol: any): Promise<void> {
 
 export function getAllSymbols(): Promise<any[]> {
   return new Promise((resolve, reject) => {
-    db.all(`SELECT * FROM symbols`, [], (err, rows) => {
+    db.all(`SELECT * FROM symbol`, [], (err, rows) => {
       if (err) return reject(err)
       const parsed = rows.map(row => ({
         ...row,
