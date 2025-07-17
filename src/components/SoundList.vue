@@ -22,15 +22,22 @@
             v-for="(row, index) in filteredAndSortedData"
             :key="index"
           >
-            <td class="mdc-data-table__cell">
+            <teleport to="body">
+              <mcw-tooltip
+                :id="`tooltip-table-sound-${index}`"
+                :persistent="true"
+              >Id: {{ row.rupee.getRepresentation(false) }}, Type: {{ getRupeeType(row.rupee.getRepresentation(false)) }}</mcw-tooltip>
+            </teleport>
+            <td class="mdc-data-table__cell" :aria-describedby="`tooltip-table-sound-${index}`">
               <RupeeDisplay
                 :rupee="row.rupee"
                 :width="10"
                 :linewidth="2"
                 :is-interactive="false"
+                :is-word="false"
                 empty-color="transparent"
-                inner-color="black"
-                outer-color="black"
+                :inner-color="getColor(row.confidence)"
+                :outer-color="getColor(row.confidence)"
                 @update:rupee="row.rupee = $event"
                 @click="selectRow(row)"
               />
@@ -61,18 +68,29 @@
         <ul class="mdc-list">
           <li
             class="mdc-list-item"
-            v-for="(word, i) in getWordsForRupee(selectedRow?.rupee)"
-            :key="word.id"
-            @click="goToWord(word)"
+            v-for="(soundUsage, i) in getSoundUsageList(selectedRow?.rupee)"
+            :key="soundUsage.sentenceId"
             style="cursor: pointer"
           >
-          <teleport to="body">
-            <mcw-tooltip
-              :id="`tooltip-sound-${word.id}-${i}`"
-              :persistent="true"
-            >{{ word.info }}</mcw-tooltip>
-          </teleport>
-            <span :aria-describedby="`tooltip-sound-${word.id}-${i}`">{{ word.text }}</span>
+            <template
+              v-for="(wordUsage, j) in soundUsage.usageList"
+            >
+              <teleport to="body">
+                <mcw-tooltip
+                  :id="`tooltip-sound-${soundUsage.sentenceId}-${i}-${j}`"
+                  :persistent="true"
+                >Id: {{ soundUsage.sentenceId }}, Words: {{ soundUsage.usageList?.length || 0 }}; {{ getSentence(wordUsage.word) }}</mcw-tooltip>
+              </teleport>
+              <div
+                :aria-describedby="`tooltip-sound-${soundUsage.sentenceId}-${i}-${j}`"
+              >
+                <RupeeSentence
+                  :rupee-list="wordUsage.word"
+                  :highlight-on-hover="true"
+                  @select:rupee="goToUsage(soundUsage, wordUsage.wordStartIndex + $event.index)"
+                />
+              </div>
+            </template>
           </li>
         </ul>
       </mcw-dialog-content>
@@ -83,10 +101,12 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
+import RupeeSentence from "./RupeeSentence.vue";
 import { useRouter } from "vue-router";
-import { Sound } from "@/server/sound";
-import { Rupee } from "@/models/Rupee";
+import { Sound, SoundType } from "@/server/sound";
+import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
+import { Sentence, SoundSentenceUsage } from "@/server/sentence";
 
 interface SoundRow {
   rupee: Rupee
@@ -96,14 +116,23 @@ interface SoundRow {
   comment: string
 };
 
+interface SoundUsage {
+  soundId: number
+  sentenceId: number
+  usageList: Array<SoundSentenceUsage>
+}
+
 export default defineComponent({
   name: "SoundList",
   components: {
-    RupeeDisplay
+    RupeeDisplay,
+    RupeeSentence,
   },
   data() {
     return {
       tableData: [] as SoundRow[],
+      soundCatalog: {} as Record<number, string>,
+      soundSentenceCatalog: {} as Record<number, Record<number, Array<SoundSentenceUsage>>>, // {sound_id: {sentence_id: [usage]}}
       selectedRow: null as SoundRow | null,
       filters: {
         sound: "",
@@ -112,7 +141,11 @@ export default defineComponent({
       },
       sortKey: "" as keyof SoundRow | "",
       sortAsc: true,
+      useThreholdColors: true,
+      thresholdHigh: 80,
+      thresholdLow: 30,
       showSoundContext: false,
+      router: useRouter(),
     };
   },
   async mounted() {
@@ -143,12 +176,14 @@ export default defineComponent({
     }
   },
   methods: {
-    async loadData() {
+    async loadData(nestedLevel: number = 0): Promise<void> {
+      let soundList: Sound[] = []
       try {
-        const res = await fetch('/api/sound');
-        const soundList: Sound[] = await res.json();
-        console.log("Sounds:", soundList);
-
+        const res = await fetch("/api/sound");
+        soundList = await res.json();
+        this.soundCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, string] {
+          return [sound.id, sound.guessed_sound];
+        }));
         this.tableData = soundList.map(function(sound: Sound): SoundRow {
           return {
             rupee: Rupee.fromRepresentation(sound.id),
@@ -159,15 +194,34 @@ export default defineComponent({
           }
         });
       } catch (err) {
-        console.error('Failed to load soundList', err);
+        console.error("Failed to load soundList", err);
+      }
+
+      try {
+        const res = await fetch("/api/sound-sentence-catalog");
+        this.soundSentenceCatalog = await res.json();
+      } catch (err) {
+        console.error("Failed to load sentence usages", err);
+      }
+
+      console.log("Sounds:", {soundList, soundCatalog: this.soundCatalog, soundSentenceCatalog: this.soundSentenceCatalog, nestedLevel});
+
+      if (nestedLevel > 1) {
+        console.error("@loadData; Nested too deeply");
+        return;
+      }
+
+      const shouldRefresh = await this.ensureSounds();
+      if (shouldRefresh) {
+        return this.loadData(nestedLevel + 1);
       }
     },
     saveRow: debounce(async function(row: SoundRow) {
-      const id = row.rupee.representation(false);
+      const id = row.rupee.getRepresentation(false);
 
       const payload = {
         id,
-        type: row.rupee.getType(),
+        type: getRupeeType(row.rupee.getRepresentation()),
         guessed_sound: row.sound,
         alternate_guesses: row.alternate_sounds,
         confidence: row.confidence,
@@ -198,22 +252,86 @@ export default defineComponent({
       this.selectedRow = row;
       this.showSoundContext = true;
     },
-    getWordsForRupee(rupee?: Rupee) {
+    getSoundUsageList(rupee?: Rupee): Array<SoundUsage> {
       if (!rupee) {
-        return;
+        return [];
       }
 
-      // TODO: Gets called often, so needs a cache
+      const soundId = rupee.getRepresentation(false)
+      const sentenceCatalog = this.soundSentenceCatalog[soundId];
+      if (!sentenceCatalog) {
+        return [];
+      }
 
-      // Mock data
-      return [
-        { id: 1, text: "mystery", info: "Appears in 3 phrases" },
-        { id: 2, text: "language", info: "Appears in 1 phrase" }
-      ];
+      return Object.entries(sentenceCatalog).map(function([sentenceIdRaw, usageList]): SoundUsage {
+        return {
+          soundId,
+          sentenceId: parseInt(sentenceIdRaw),
+          usageList: usageList,
+        }
+      });
     },
-    goToWord(word: any) {
-      const router = useRouter();
-      router.push(`/sentence-viewer/${word.id}`);
+    goToUsage(usage: SoundUsage, index: number) {
+      this.router.push(`/sentence-viewer/${usage.sentenceId}?pre-select=${index}`); // TODO: Pre-select the part of the word that has this sound
+    },
+    async ensureSounds(): Promise<boolean> {
+      let foundMissing = false;
+      const existingSounds = new Set(this.tableData.map((row) => row.rupee.getRepresentation(false)));
+      for (const soundIdRaw in this.soundSentenceCatalog) {
+        const soundId = parseInt(soundIdRaw);
+        if (!existingSounds.has(soundId)) {
+          foundMissing = true;
+          console.log("Adding Missing sound:", soundId, existingSounds);
+
+          await fetch('/api/sound', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: soundId,
+              type: getRupeeType(soundId),
+            }),
+          });
+        }
+      }
+      return foundMissing;
+    },
+    getRupeeType(representation: number): SoundType {
+      return getRupeeType(representation);
+    },
+    getSentence(rupeeIdList: Array<number>): string {
+      let answer = "";
+      for (const rupeeId of rupeeIdList) {
+          if (rupeeId === 0) {
+            answer += " "
+            continue;
+          }
+
+          const inner = getRupeeInnerValue(rupeeId);
+          const outer = getRupeeOuterValue(rupeeId);
+          for (const soundId of [inner, outer]) {
+            if (soundId === 0) {
+              continue;
+            }
+            answer += (this.soundCatalog[soundId] || "?");
+          }
+      }
+
+      return answer;
+    },
+    getColor(confidence: number): string {
+      if (!this.useThreholdColors) {
+        return "black";
+      }
+
+      if (confidence > this.thresholdHigh) {
+        return "green";
+      }
+
+      if (confidence > this.thresholdLow) {
+        return "orange";
+      }
+      
+      return "red";
     },
   }
 })

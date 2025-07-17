@@ -2,7 +2,8 @@ import cors from "cors"
 import express from "express"
 import bodyParser from "body-parser"
 import { soundGetAll, soundSave } from "./sound"
-import { sentenceGetAll, sentenceSave, sentenceGetById } from "./sentence"
+import { sentenceGetAll, sentenceSave, sentenceGetById, Sentence, SoundSentenceUsage } from "./sentence"
+import { getRupeeInnerValue, getRupeeOuterValue } from "@/models/Rupee"
 
 export const app = express()
 app.use(cors())
@@ -39,6 +40,83 @@ app.get("/sentence/:id", async (req, res) => {
     res.json(sentence);
   } catch (err) {
     console.error("Error fetching sentence:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/sound-sentence-catalog", async function(req, res) {
+  try {
+    const sentenceList = await sentenceGetAll();
+
+    // Get each sentence that contains the symbol and the rupee they are a part of
+    const soundCatalog: Record<number, Record<number, Array<SoundSentenceUsage>>> = {}; // {sound_id: {sentence_id: [usage]}}
+    for (const sentence of sentenceList) {
+      if (sentence.id === undefined) {
+        continue;
+      }
+
+      // Get a list of all the rupee words that are in the sentence
+      const fullWordList: Array<[number, Array<number>]> = [];
+      let currentWord: Array<number> = [];
+      let currentWordStartIndex = 0;
+      for (const [i, rupeeId] of Object.entries(sentence.word_list)) {
+        if (typeof rupeeId !== "number") {
+          // A word is a continueous array of numbers
+          if (currentWord.length) {
+            fullWordList.push([currentWordStartIndex, currentWord])
+          }
+          currentWordStartIndex = -1;
+          currentWord = [];
+          continue;
+        }
+
+        if (currentWordStartIndex == -1) {
+          currentWordStartIndex = parseInt(i);
+        }
+
+        currentWord.push(rupeeId);
+      }
+
+      // Account for ending on a rupee word
+      if (currentWord.length) {
+        fullWordList.push([currentWordStartIndex, currentWord])
+      }
+
+      // Catalog all the sounds in the list of words
+      for (const [wordStartIndex, fullWord] of fullWordList) {
+        for (const rupeeId of fullWord) {
+          const inner = getRupeeInnerValue(rupeeId);
+          const outer = getRupeeOuterValue(rupeeId);
+          for (const subRepresentation of [inner, outer]) {
+            if (subRepresentation === 0) {
+              continue;
+            }
+
+            let sentenceCatalog = soundCatalog[subRepresentation];
+            if (sentenceCatalog === undefined) {
+              sentenceCatalog = {};
+              soundCatalog[subRepresentation] = sentenceCatalog;
+            }
+
+            let usageList: Array<SoundSentenceUsage> = sentenceCatalog[sentence.id];
+            if (usageList === undefined) {
+              usageList = [];
+              sentenceCatalog[sentence.id] = usageList;
+            }
+
+            usageList.push({
+              rupeeId,
+              wordStartIndex,
+              word: fullWord,
+            });
+          }
+        }
+      }
+    }
+
+    res.json(soundCatalog);
+  } catch (err) {
+    console.error("Error fetching sentence catalog:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

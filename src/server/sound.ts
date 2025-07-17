@@ -1,6 +1,6 @@
 import { db } from './db'
 
-export type SoundType = "inner" | "outer" | "mixed"
+export type SoundType = "inner" | "outer" | "mixed" | "empty"
 
 export interface Sound {
   id: number

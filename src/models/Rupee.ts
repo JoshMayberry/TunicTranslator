@@ -1,7 +1,26 @@
 // src/models/Rupee.ts
 
 import { SoundType } from '@/server/sound'
-import type { RupeeSegmentState } from '../types/models'
+
+export interface RupeeSegmentState {
+  outer?: {
+    bottomRight?: boolean // 1
+    bottomLeft?: boolean  // 10
+    middleLeft?: boolean  // 100
+    topLeft?: boolean     // 1000
+    topRight?: boolean    // 10000
+  }
+  inner?: {
+    bottomRight?: boolean  // 100000
+    bottomCenter?: boolean // 1000000
+    bottomLeft?: boolean   // 10000000
+    topLeft?: boolean      // 100000000
+    topCenter?: boolean    // 1000000000
+    topRight?: boolean     // 10000000000
+    center?: boolean       // 100000000000
+  }
+  bottomCircle?: boolean   // 1000000000000
+}
 
 export class Rupee {
   state: RupeeSegmentState
@@ -30,7 +49,7 @@ export class Rupee {
     }
   }
 
-  representation(includeCircle?: boolean): number {
+  getRepresentation(includeCircle?: boolean): number {
     let value = 0
 
     // Outer bits
@@ -53,10 +72,6 @@ export class Rupee {
     if (includeCircle && this.state.bottomCircle) value |= 1 << 12; // 2^12
 
     return value;
-  }
-
-  getType(): SoundType {
-    return "mixed";
   }
 
   static fromRepresentation(representation: number): Rupee {
@@ -82,4 +97,38 @@ export class Rupee {
 
     return new Rupee(state)
   }
+}
+
+export function getRupeeInnerValue(representation: number): number {
+  return representation & 4064;
+}
+
+export function getRupeeOuterValue(representation: number, includeCircle?: boolean): number {
+  if (includeCircle) {
+    return representation & 4127;
+  }
+  return representation & 31;
+}
+
+export function getRupeeCircledo(representation: number): number {
+  return representation >> 12;
+}
+
+export function getRupeeType(representation: number): SoundType {
+  const inner = getRupeeInnerValue(representation);
+  const outer = getRupeeOuterValue(representation);
+
+  if (inner === 0) {
+    if (outer === 0) {
+      return "empty"
+    }
+
+    return "outer"
+  }
+  
+  if (outer === 0) {
+    return "inner"
+  }
+
+  return "mixed";
 }

@@ -6,19 +6,37 @@
         :class="{ selected: index === selectedIndex }"
         @click="() => handleClick(item, index)"
       >
-        <RupeeDisplay
-          v-if="typeof item == 'number'"
-          :rupee="getRupeeFromRepresentation(item)"
-          :width="width"
-          :linewidth="linewidth"
-          :is-interactive="false"
-          :outer-color="outerColor"
-          :inner-color="innerColor"
-          :empty-color="emptyColor"
-          :is-debug="false"
-          :is-word="true"
-          class="sentence-item"
-        />
+        <template v-if="typeof item == 'number'">
+          <RupeeDisplay
+            :rupee="explodeRupee ? getRupeeInnerRepresentaion(item) : getRupeeFromRepresentation(item)"
+            :width="width"
+            :linewidth="linewidth"
+            :is-interactive="false"
+            :outer-color="outerColor"
+            :inner-color="innerColor"
+            :empty-color="emptyColor"
+            :use-threhold-colors="useThreholdColors"
+            :confidence-catalog="confidenceCatalog"
+            :is-debug="false"
+            :is-word="true"
+            class="sentence-item"
+          />
+          <RupeeDisplay
+            v-if="explodeRupee && shouldShowSecondRupee(item)"
+            :rupee="explodeRupee ? getRupeeOuterRepresentaion(item) : getRupeeFromRepresentation(item)"
+            :width="width"
+            :linewidth="linewidth"
+            :is-interactive="false"
+            :outer-color="outerColor"
+            :inner-color="innerColor"
+            :empty-color="emptyColor"
+            :use-threhold-colors="useThreholdColors"
+            :confidence-catalog="confidenceCatalog"
+            :is-debug="false"
+            :is-word="true"
+            class="sentence-item"
+          />
+        </template>
         <span v-else-if="typeof item === 'string'" class="text-block sentence-item">{{ item }}</span>
         <span v-else class="gap-block sentence-item"> </span>
       </span>
@@ -29,7 +47,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
-import { Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, Rupee } from "@/models/Rupee";
 
 export default defineComponent({
   name: "RupeeSentence",
@@ -48,10 +66,22 @@ export default defineComponent({
     emptyColor: { type: String, default: "transparent" },
     selectedIndex: { type: Number, default: undefined },
     highlightOnHover: { type: Boolean, default: false },
+    explodeRupee: { type: Boolean, default: false },
+    useThreholdColors: { type: Boolean, default: false },
+    confidenceCatalog: { type: Object as () => Record<number, number>, default: {} },
   },
   methods: {
     getRupeeFromRepresentation(representation: number): Rupee {
-        return Rupee.fromRepresentation(representation)
+        return Rupee.fromRepresentation(representation);
+    },
+    getRupeeInnerRepresentaion(representation: number): Rupee {
+        return Rupee.fromRepresentation(getRupeeInnerValue(representation));
+    },
+    getRupeeOuterRepresentaion(representation: number): Rupee {
+        return Rupee.fromRepresentation(getRupeeOuterValue(representation, true));
+    },
+    shouldShowSecondRupee(representation: number): boolean {
+      return getRupeeOuterValue(representation) != 0;
     },
     handleClick(item: number | string | null, index: number) {
       if (typeof item === "number") {
@@ -61,7 +91,7 @@ export default defineComponent({
       } else {
         this.$emit("select:space", { index });
       }
-    }
+    },
   },
 });
 </script>

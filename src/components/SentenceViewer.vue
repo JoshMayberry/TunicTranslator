@@ -11,9 +11,22 @@
           :rupee-list="sentence.word_list"
           :selected-index="selectedRupeeIndex"
           :highlight-on-hover="true"
+          :explode-rupee="explodeRupee"
+          :use-threhold-colors="useThreholdColors"
+          :confidence-catalog="confidenceCatalog"
           @select:rupee="onRupeeClick"
           @select:text="onTextClick"
           @select:space="onSpaceClick"
+        />
+        <mcw-textfield
+          v-model="directTranslation"
+          class="translation-box"
+          label="DirectTranslation"
+          multiline
+          aria-readonly="true"
+          aria-disabled="true"
+          readonly
+          disabled
         />
         <mcw-textfield
           v-model="sentence.translation"
@@ -21,6 +34,33 @@
           label="Translation"
           multiline
         />
+        <mcw-textfield
+          v-model="sentence.comment"
+          class="translation-box"
+          label="comment"
+          multiline
+        />
+        <div style="display: flex; flex-direction: row;">
+          <mcw-select
+            v-model="sentence.page_number"
+            :value="sentence.page_number"
+            label="Page"
+            helptext="What page this was on"
+          >
+            <mcw-list-item
+              v-for="(page, key) in pageList"
+              :key="key"
+              :value="key"
+              :data-value="key"
+            >{{ page.label || key }}</mcw-list-item>
+          </mcw-select>
+          <img
+            v-if="sentence.page_number && pageList[sentence.page_number]?.imagePath"
+            :src="pageList[sentence.page_number].imagePath"
+            alt="Page image"
+            style="max-width: 100%; margin-top: 1rem;"
+          />
+        </div>
       </div>
       <div style="display: flex; flex-direction: column;">
         <RupeeDisplay
@@ -28,14 +68,18 @@
           :rupee="selectedRupee"
           style="flex:1"
           :is-word="false"
+          :is-debug="showDebugValue"
           :disabled="!selectedRupee"
           @update:rupee="onUpdateRupee($event)"
+          :use-threhold-colors="useThreholdColors"
+          :confidence-catalog="confidenceCatalog"
         ></RupeeDisplay>
         <mcw-textfield
           v-if="typeof selectedRupeeValue === 'string'"
           v-model="rupeePlainText"
           class="title-box"
         />
+        <mcw-button @click="explodeRupee = !explodeRupee">Toggle<br>Explode</mcw-button>
         <mcw-button @click="onDeselect" :disabled="selectedRupeeIndex === undefined">Deselect</mcw-button>
         <mcw-button @click="onAddRupee">Add Rupee</mcw-button>
         <mcw-button @click="onAddSpace">Add Space</mcw-button>
@@ -53,7 +97,6 @@
     <span v-else-if="lastSaved">Last saved at {{ lastSaved.toLocaleTimeString() }}</span>
   </div>
 
-
   <mcw-snackbar-queue
     ref="snackbarQueue"
     v-model:snack="snackbarNextMessage"
@@ -65,9 +108,11 @@ import { defineComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import RupeeDisplay from './RupeeDisplay.vue';
 import RupeeSentence from './RupeeSentence.vue';
-import { Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
 import { Sentence } from "@/server/sentence";
+import { Sound } from "@/server/sound";
+import { PageInfo, pageInfoList } from "@/models/PageInfo";
 
 const testSentence: Sentence = {
   id: undefined,
@@ -76,6 +121,7 @@ const testSentence: Sentence = {
   translation: "lorem ipsum dolor sit amet",
   confidence: 30,
   picture: "",
+  page_number: "54",
   comment: "lorem ipsum",
   tags: ["lorem", "ipsum"],
 };
@@ -85,6 +131,12 @@ export default defineComponent({
   components: {
     RupeeDisplay,
     RupeeSentence,
+  },
+  props: {
+    showDebugValue: {
+      type: Boolean,
+      default: true,
+    },
   },
   data(): {
       sentence: Sentence,
@@ -97,6 +149,10 @@ export default defineComponent({
       isSaving: boolean,
       lastSaved: Date | null,
       canSave: boolean,
+      explodeRupee: boolean,
+      soundCatalog: Record<number, string>,
+      confidenceCatalog: Record<number, number>,
+      useThreholdColors: boolean,
     } {
     return {
       sentence: testSentence,
@@ -109,6 +165,10 @@ export default defineComponent({
       isSaving: false,
       lastSaved: null,
       canSave: false,
+      explodeRupee: false,
+      soundCatalog: {},
+      confidenceCatalog: {},
+      useThreholdColors: true,
     };
   },
   computed: {
@@ -122,7 +182,13 @@ export default defineComponent({
       if (typeof this.selectedRupeeValue === "number") {
         return Rupee.fromRepresentation(this.selectedRupeeValue);
       }
-    }
+    }, 
+    directTranslation(): string {
+      return this.getSentence(this.sentence.word_list);
+    },
+    pageList() {
+      return pageInfoList;
+    },
   },
   setup() {
     const route = useRoute();
@@ -133,6 +199,11 @@ export default defineComponent({
     this.debouncedSave = debounce(this.saveSentence, 500);
 
     const idParam = this.route.params.id;
+    const preSelectParam = this.route.query["pre-select"];
+    this.selectedRupeeIndex = preSelectParam && !isNaN(Number(preSelectParam as string))
+      ? Number(preSelectParam)
+      : undefined;
+
     if (idParam && !isNaN(Number(idParam))) {
       const id = Number(idParam);
       try {
@@ -152,6 +223,7 @@ export default defineComponent({
         translation: "",
         confidence: 0,
         picture: "",
+        page_number: "n/a",
         comment: "",
         tags: []
       };
@@ -161,7 +233,15 @@ export default defineComponent({
       this.canSave = true;
     });
   },
-  mounted() {
+  async mounted() {
+    const res = await fetch("/api/sound");
+    const soundList = await res.json();
+    this.soundCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, string] {
+      return [sound.id, sound.guessed_sound];
+    }));
+    this.confidenceCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, number] {
+      return [sound.id, sound.confidence];
+    }));
   },
   watch: {
     rupeePlainText(val: string) {
@@ -196,7 +276,7 @@ export default defineComponent({
       this.selectedRupeeIndex = undefined;
     },
     onAddRupee() {
-      const newRupee = Rupee.fromRepresentation(0).representation(true);
+      const newRupee = Rupee.fromRepresentation(0).getRepresentation(true);
       const i = this.selectedRupeeIndex ?? this.sentence.word_list.length;
       this.sentence.word_list.splice(i + 1, 0, newRupee);
       this.selectedRupeeIndex = i + 1;
@@ -240,7 +320,7 @@ export default defineComponent({
         this.showAlert("Nothing selected to update");
         return;
       }
-      this.sentence.word_list[this.selectedRupeeIndex] = rupee.representation(true)
+      this.sentence.word_list[this.selectedRupeeIndex] = rupee.getRepresentation(true)
     },
     onRupeeClick({ rupee, index }: {rupee: Rupee, index: number}) {
       this.selectedRupeeIndex = index;
@@ -298,8 +378,33 @@ export default defineComponent({
       } finally {
         this.isSaving = false;
       }
-    }
-  },
+    },
+    getSentence(rupeeIdList: Array<number | string | null>): string {
+      let answer = "";
+      for (const rupeeId of rupeeIdList) {
+          if ((rupeeId === 0) || (rupeeId === undefined) || (rupeeId === null)) {
+            answer += " "
+            continue;
+          }
+
+          if (typeof rupeeId === "string") {
+            answer += rupeeId;
+            continue;
+          }
+
+          const inner = getRupeeInnerValue(rupeeId);
+          const outer = getRupeeOuterValue(rupeeId);
+          for (const soundId of [inner, outer]) {
+            if (soundId === 0) {
+              continue;
+            }
+            answer += (this.soundCatalog[soundId] || "?");
+          }
+      }
+
+      return answer;
+    },
+  }
 });
 </script>
 

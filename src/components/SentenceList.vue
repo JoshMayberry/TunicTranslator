@@ -7,12 +7,14 @@
             <th class="mdc-data-table__header-cell" @click="sortBy('title')">Title</th>
             <th class="mdc-data-table__header-cell">Sentence</th>
             <th class="mdc-data-table__header-cell" @click="sortBy('confidence')">Confidence</th>
+            <th class="mdc-data-table__header-cell" @click="sortBy('page_number')">Page</th>
             <th class="mdc-data-table__header-cell" @click="sortBy('comment')">Comment</th>
           </tr>
           <tr>
             <th><input v-model="filters.title" placeholder="Filter Title" /></th>
             <th></th>
             <th><input v-model="filters.confidence" placeholder="Filter Confidence" /></th>
+            <th><input v-model="filters.page_number" placeholder="Filter Page" /></th>
             <th><input v-model="filters.comment" placeholder="Filter Comment" /></th>
           </tr>
         </thead>
@@ -28,11 +30,15 @@
             <td class="mdc-data-table__cell">
               <RupeeSentence
                 :rupee-list="row.word_list"
+                :confidence-catalog="confidenceCatalog"
                 @click="selectRow(row)"
               />
             </td>
             <td class="mdc-data-table__cell has-editable">
               <input type="number" v-model.number="row.confidence" class="editable-input" @blur="saveRow(row)" />
+            </td>
+            <td class="mdc-data-table__cell has-editable">
+              <input v-model="row.page_number" class="editable-input" @blur="saveRow(row)" />
             </td>
             <td class="mdc-data-table__cell has-editable">
               <input v-model="row.comment" class="editable-input" @blur="saveRow(row)" />
@@ -51,6 +57,7 @@ import RupeeSentence from "./RupeeSentence.vue";
 import { useRouter } from "vue-router";
 import { Sentence } from "@/server/sentence";
 import debounce from "lodash.debounce";
+import { Sound } from "@/server/sound";
 
 interface SentenceRow {
   id: number
@@ -59,6 +66,7 @@ interface SentenceRow {
   translation: string
   confidence: number
   picture: string
+  page_number: string
   comment: string
 };
 
@@ -73,10 +81,12 @@ export default defineComponent({
       filters: {
         title: "",
         confidence: "",
-        comment: ""
+        comment: "",
+        page_number: "",
       },
       sortKey: "" as keyof SentenceRow | "",
       sortAsc: true,
+      confidenceCatalog: {} as Record<number, number>,
       router: useRouter(),
     };
   },
@@ -110,10 +120,15 @@ export default defineComponent({
   methods: {
     async loadData() {
       try {
-        const res = await fetch('/api/sentence');
+        let res = await fetch("/api/sound");
+        const soundList = await res.json();
+        this.confidenceCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, number] {
+          return [sound.id, sound.confidence];
+        }));
+
+        res = await fetch('/api/sentence');
         const sentenceList: Sentence[] = await res.json();
         console.log("Sentences:", sentenceList);
-
         this.tableData = sentenceList.map(function(sentence: Sentence): SentenceRow {
           return {
             id: sentence.id || -1,
@@ -122,6 +137,7 @@ export default defineComponent({
             translation: sentence.translation,
             confidence: sentence.confidence,
             picture: sentence.picture,
+            page_number: sentence.page_number,
             comment: sentence.comment,
           }
         });
@@ -137,6 +153,7 @@ export default defineComponent({
         translation: row.translation,
         confidence: row.confidence,
         picture: row.picture,
+        page_number: row.page_number,
         comment: row.comment,
       };
 
