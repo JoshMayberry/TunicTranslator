@@ -24,6 +24,8 @@
             :outer-color="outerColor"
             :inner-color="innerColor"
             :empty-color="emptyColor"
+            :highlight-sound="highlightSound"
+            :sound-color="soundColor"
             :use-threhold-colors="useThreholdColors"
             :confidence-catalog="confidenceCatalog"
             :sound-catalog="soundCatalog"
@@ -40,6 +42,8 @@
             :outer-color="outerColor"
             :inner-color="innerColor"
             :empty-color="emptyColor"
+            :highlight-sound="highlightSound"
+            :sound-color="soundColor"
             :use-threhold-colors="useThreholdColors"
             :confidence-catalog="confidenceCatalog"
             :sound-catalog="soundCatalog"
@@ -74,9 +78,11 @@ export default defineComponent({
     linewidth: { type: Number, default: 2 },
     outerColor: { type: String, default: "black" },
     innerColor: { type: String, default: "black" },
+    soundColor: { type: String, default: "magenta" },
     emptyColor: { type: String, default: "transparent" },
     selectedIndex: { type: Number, default: undefined },
     highlightOnHover: { type: Boolean, default: false },
+    highlightSound: { type: Number, default: -1 },
     explodeRupee: { type: Boolean, default: false },
     useThreholdColors: { type: Boolean, default: false },
     confidenceCatalog: { type: Object as () => Record<number, number>, default: {} },

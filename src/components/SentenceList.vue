@@ -32,12 +32,20 @@
                 <mcw-tooltip
                   :id="`tooltip-table-sentence-${index}`"
                   :persistent="true"
+                  class="sentence-tooltip"
                 >
                   <span>{{ getSentence(row.word_list) }}</span>
                   <template v-if="row.translation">
                     <hr>
                     <span>{{ row.translation }}</span>
                   </template>
+                  <ImageOverlayEditor
+                    v-if="row.page_number && row.page_overlay?.height && pageInfoList[row.page_number]?.imagePath && pageInfoList[row.page_number]?.isFound"
+                    :src="pageInfoList[row.page_number].imagePath || ''"
+                    :overlay="row.page_overlay"
+                    :apply-overlay-mask="true"
+                    style="max-width: 100%; margin-top: 1rem;"
+                  />
                 </mcw-tooltip>
               </teleport>
               <RupeeSentence
@@ -67,11 +75,13 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import RupeeSentence from "./RupeeSentence.vue";
+import ImageOverlayEditor from "./ImageOverlayEditor.vue";
 import { useRouter } from "vue-router";
-import { Sentence } from "@/server/sentence";
+import { PageOverlay, Sentence } from "@/server/sentence";
 import debounce from "lodash.debounce";
 import { Sound } from "@/server/sound";
 import { getRupeeInnerValue, getRupeeOuterValue, getTranslation } from "@/models/Rupee";
+import { PageInfo } from "@/models/PageInfo";
 
 interface SentenceRow {
   id: number
@@ -81,13 +91,18 @@ interface SentenceRow {
   confidence: number
   picture: string
   page_number: string
+  page_overlay: PageOverlay
   comment: string
 };
 
 export default defineComponent({
   name: "SentenceList",
   components: {
-    RupeeSentence
+    RupeeSentence,
+    ImageOverlayEditor,
+  },
+  props: {
+    pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true }
   },
   data() {
     return {
@@ -157,6 +172,7 @@ export default defineComponent({
             confidence: sentence.confidence,
             picture: sentence.picture,
             page_number: sentence.page_number,
+            page_overlay: sentence.page_overlay,
             comment: sentence.comment,
           }
         });
@@ -173,6 +189,7 @@ export default defineComponent({
         confidence: row.confidence,
         picture: row.picture,
         page_number: row.page_number,
+        page_overlay: row.page_overlay,
         comment: row.comment,
       };
 
@@ -239,5 +256,11 @@ export default defineComponent({
 }
 .context-drawer {
   width: 300px;
+}
+</style>
+
+<style>
+.sentence-tooltip .mdc-tooltip__surface {
+  max-width: 50vw;
 }
 </style>

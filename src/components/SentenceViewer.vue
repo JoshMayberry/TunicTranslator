@@ -48,22 +48,35 @@
           multiline
         />
         <div style="display: flex; flex-direction: row;">
-          <mcw-select
-            v-model="sentence.page_number"
-            :value="sentence.page_number"
-            label="Page"
-            helptext="What page this was on"
-          >
-            <mcw-list-item
-              v-for="(page, key) in pageList"
-              :key="key"
-              :value="key"
-              :data-value="key"
-            >{{ page.label || key }}</mcw-list-item>
-          </mcw-select>
-          <img
-            v-if="sentence.page_number && pageList[sentence.page_number]?.imagePath"
-            :src="pageList[sentence.page_number].imagePath"
+          <div style="display: flex; flex-direction: column;">
+            <div style="font-size: 12px; color: gray; margin-left: auto; margin-right: auto;">
+              <span v-if="isSaving">Saving…</span>
+              <span v-else-if="lastSaved">Last saved at {{ lastSaved.toLocaleTimeString() }}</span>
+            </div>
+            <mcw-select
+              v-model="sentence.page_number"
+              :value="sentence.page_number"
+              label="Page"
+            >
+              <template
+                v-for="(page, key) in pageInfoList"
+                :key="key"
+              >
+                <mcw-list-item
+                  v-if="page.isFound"
+                  :value="key"
+                  :data-value="key"
+                >{{ page.label || key }}</mcw-list-item>
+              </template>
+            </mcw-select>
+            <mcw-button @click="doImageMask = !doImageMask">Toggle<br>Overlay</mcw-button>
+          </div>
+          <ImageOverlayEditor
+            v-if="sentence.page_number && pageInfoList[sentence.page_number]?.imagePath && pageInfoList[sentence.page_number]?.isFound"
+            :src="pageInfoList[sentence.page_number].imagePath || ''"
+            :overlay="sentence.page_overlay"
+            :apply-overlay-mask="doImageMask"
+            @update:overlay="(val: PageOverlay) => sentence.page_overlay = val"
             alt="Page image"
             style="max-width: 100%; margin-top: 1rem;"
           />
@@ -86,6 +99,7 @@
           class="title-box"
         />
         <mcw-button @click="explodeRupee = !explodeRupee">Toggle<br>Explode</mcw-button>
+        <mcw-button @click="useThreholdColors = !useThreholdColors">Toggle<br>Threshold</mcw-button>
         <mcw-button @click="onDeselect" :disabled="selectedRupeeIndex === undefined">Deselect</mcw-button>
         <mcw-button @click="onAddRupee">Add Rupee</mcw-button>
         <mcw-button @click="onAddSpace">Add Space</mcw-button>
@@ -107,10 +121,6 @@
       </div>
     </div>
   </div>
-  <div style="font-size: 12px; color: gray; margin-left: auto;">
-    <span v-if="isSaving">Saving…</span>
-    <span v-else-if="lastSaved">Last saved at {{ lastSaved.toLocaleTimeString() }}</span>
-  </div>
 
   <mcw-snackbar-queue
     ref="snackbarQueue"
@@ -123,11 +133,12 @@ import { defineComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import RupeeDisplay from './RupeeDisplay.vue';
 import RupeeSentence from './RupeeSentence.vue';
+import ImageOverlayEditor from './ImageOverlayEditor.vue';
 import { getRupeeInnerValue, getRupeeOuterValue, getTranslation, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
-import { Sentence } from "@/server/sentence";
+import { PageOverlay, Sentence } from "@/server/sentence";
 import { Sound } from "@/server/sound";
-import { PageInfo, pageInfoList } from "@/models/PageInfo";
+import { PageInfo } from "@/models/PageInfo";
 
 const testSentence: Sentence = {
   id: undefined,
@@ -137,6 +148,7 @@ const testSentence: Sentence = {
   confidence: 30,
   picture: "",
   page_number: "54",
+  page_overlay: {},
   comment: "lorem ipsum",
   tags: ["lorem", "ipsum"],
 };
@@ -146,12 +158,11 @@ export default defineComponent({
   components: {
     RupeeDisplay,
     RupeeSentence,
+    ImageOverlayEditor,
   },
   props: {
-    showDebugValue: {
-      type: Boolean,
-      default: true,
-    },
+    showDebugValue: { type: Boolean, default: true },
+    pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true }
   },
   data(): {
       sentence: Sentence,
@@ -164,6 +175,7 @@ export default defineComponent({
       isSaving: boolean,
       lastSaved: Date | null,
       canSave: boolean,
+      doImageMask: boolean,
       explodeRupee: boolean,
       soundCatalog: Record<number, string>,
       confidenceCatalog: Record<number, number>,
@@ -182,6 +194,7 @@ export default defineComponent({
       isSaving: false,
       lastSaved: null,
       canSave: false,
+      doImageMask: true,
       explodeRupee: false,
       soundCatalog: {},
       confidenceCatalog: {},
@@ -201,12 +214,9 @@ export default defineComponent({
       if (typeof this.selectedRupeeValue === "number") {
         return Rupee.fromRepresentation(this.selectedRupeeValue);
       }
-    }, 
+    },
     directTranslation(): string {
       return this.getSentence(this.sentence.word_list);
-    },
-    pageList() {
-      return pageInfoList;
     },
   },
   setup() {
@@ -243,6 +253,7 @@ export default defineComponent({
         confidence: 0,
         picture: "",
         page_number: "n/a",
+        page_overlay: {},
         comment: "",
         tags: []
       };
@@ -411,6 +422,22 @@ export default defineComponent({
         this.$router.go(0); // Force reload
       }, 100);
     },
+    // updateSelectedTextContent() {
+    //   const pageSelect: any = this.$refs.pageSelect;
+    //   console.log("@updateSelectedTextContent.1", {pageSelect, selectedTextContent: pageSelect?.selectedTextContent});
+    //   if (!pageSelect || pageSelect.selectedTextContent) {
+    //     console.log("@updateSelectedTextContent.2");
+    //     return;
+    //   }
+    //   // The selected text did not populate in for some reason, so let's do that
+    //   const page = this.pageList[pageSelect.modelValue];
+    //   console.log("@updateSelectedTextContent.3", {page, modelValue: pageSelect.modelValue, pageSelect});
+    //   if (page) {
+    //     console.log("@updateSelectedTextContent.4");
+    //     pageSelect.selectedTextContent = page.label || pageInfoList.number;
+    //     console.log("Applied patch for page selection box");
+    //   }
+    // },
   }
 });
 </script>

@@ -87,6 +87,7 @@
                 <RupeeSentence
                   :rupee-list="wordUsage.word"
                   :highlight-on-hover="true"
+                  :highlight-sound="soundUsage.soundId"
                   @select:rupee="goToUsage(soundUsage, wordUsage.wordStartIndex + $event.index)"
                 />
               </div>

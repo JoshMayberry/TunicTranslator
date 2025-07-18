@@ -50,6 +50,8 @@ export default defineComponent({
     outerColor: { type: String, default: "black" },
     innerColor: { type: String, default: "black" },
     emptyColor: { type: String, default: "lightgray" },
+    soundColor: { type: String, default: "magenta" },
+    highlightSound: { type: Number, default: -1 },
     isInteractive: { type: Boolean, default: true },
     isDebug: { type: Boolean, default: true },
     isWord: { type: Boolean, default: true },
@@ -485,23 +487,29 @@ export default defineComponent({
         return Math.abs(Math.hypot(a.x - b.x, a.y - b.y));
     },
 
+    getSoundId(isInner: boolean): number {
+      const rupeeId = this.rupee.getRepresentation(false)
+      return (isInner ? getRupeeInnerValue(rupeeId) : getRupeeOuterValue(rupeeId))
+    },
     resolveColor(isInner: boolean): string {
-      if (!this.useThreholdColors || !Object.keys(this.confidenceCatalog).length) {
-        if (isInner) {
-          return this.innerColor;
+      const normalColor = (isInner ? this.innerColor : this.outerColor);
+
+      if (this.highlightSound != -1) {
+        const soundId = this.getSoundId(isInner);
+        if (soundId === this.highlightSound) {
+          return this.soundColor;
         }
-        return this.outerColor;
       }
 
-      const rupeeId = this.rupee.getRepresentation(false)
-      const soundId = (isInner ? getRupeeInnerValue(rupeeId) : getRupeeOuterValue(rupeeId))
+      if (!this.useThreholdColors || !Object.keys(this.confidenceCatalog).length) {
+        return normalColor;
+      }
+
+      const soundId = this.getSoundId(isInner);
       const confidence = this.confidenceCatalog[soundId];
 
       if (!confidence || (confidence < 0)) {
-        if (isInner) {
-          return this.innerColor;
-        }
-        return this.outerColor;
+        return normalColor;
       }
 
       if (confidence > this.thresholdHigh) {

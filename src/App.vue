@@ -4,7 +4,7 @@
     <NavigationBar class="mdc-top-app-bar--fixed-adjust" />
     
     <main class="p-4">
-      <router-view />
+      <router-view :page-info-list="pageInfoListRef" />
     </main>
   </div>
 </template>
@@ -14,10 +14,12 @@ import AppBar from './components/AppBar.vue';
 import NavigationBar from './components/NavigationBar.vue';
 import { onMounted, ref } from 'vue'
 import { Settings } from './server/settting';
-import { updatePageInfoList } from './models/PageInfo';
+import { PageInfo, pageInfoList, updatePageInfoList } from './models/PageInfo';
 // import { loadWords, loadSentences, loadSymbols } from './services/api'
 // import SaveAllPending from './components/SaveAllPending.vue'
 // import { autoSync } from './stores/settings'
+
+const pageInfoListRef = ref<Record<string, PageInfo>>({})
 
 
 onMounted(async () => {
@@ -35,7 +37,8 @@ onMounted(async () => {
           ...data,
           found_pages: filledPages,
         };
-        updatePageInfoList(settings.found_pages);
+
+        pageInfoListRef.value = updatePageInfoList(settings.found_pages);
       } catch (err) {
         console.error("Failed to load settings", err);
       }

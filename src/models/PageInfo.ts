@@ -33,4 +33,5 @@ export function updatePageInfoList(foundPages: Record<string, boolean>) {
     pageInfo.isFound = foundPages[pageInfoNumber];
   }
   console.log("Synced found pages", foundPages);
+  return pageInfoList
 }

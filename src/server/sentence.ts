@@ -158,12 +158,12 @@ export function sentenceSave(data: Sentence): Promise<number> {
     const query = isNew
       ? `
         INSERT INTO sentence (confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       : `
         INSERT OR REPLACE INTO sentence
         (id, confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
     const params = isNew

@@ -20,8 +20,9 @@ export default defineComponent({
   name: "ImageOverlayEditorCanvas",
   props: {
     src: { type: String, required: true },
-    overlay: { type: Object as PropType<PageOverlay>, required: true },
+    overlay: { type: Object as PropType<PageOverlay>, default: {x: 0, y: 0, width: 0, height: 0} },
     alt: { type: String, default: "Page Image" },
+    applyOverlayMask: { type: Boolean, default: false },
   },
   emits: ["update:overlay"],
   data() {
@@ -32,14 +33,23 @@ export default defineComponent({
         image: null as HTMLImageElement | null,
         imageWidth: 0,
         imageHeight: 0,
-        internalOverlay: { x: 0, y: 0, width: 0, height: 0 } as PageOverlay,
+        internalOverlay: this.overlay,
     };
   },
   watch: {
+    applyOverlayMask() {
+        this.draw();
+    },
     overlay: {
       deep: true,
       handler(newVal) {
         this.internalOverlay = { ...newVal };
+        this.draw();
+      },
+    },
+    src: {
+      handler(newVal) {
+        this.loadImage();
         this.draw();
       },
     },
@@ -49,6 +59,11 @@ export default defineComponent({
   },
   mounted() {
     this.loadImage();
+  },
+  computed: {
+    shouldApplyOverlayCrop(): boolean {
+        return !!(this.applyOverlayMask && this.overlay?.height && this.overlay?.width);
+    }
   },
   methods: {
     async loadImage() {
@@ -67,19 +82,39 @@ export default defineComponent({
         if (!ctx || !this.image) return;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(this.image, 0, 0, this.imageWidth, this.imageHeight);
 
-        const { x=0, y=0, width=0, height=0 } = this.internalOverlay;
+        const { x = 0, y = 0, width = 1, height = 1 } = this.internalOverlay;
 
-        ctx.save();
-        ctx.strokeStyle = "blue";
-        ctx.lineWidth = 2;
-        ctx.fillStyle = "rgba(0, 0, 255, 0.2)";
-        ctx.fillRect(x * this.imageWidth, y * this.imageHeight, width * this.imageWidth, height * this.imageHeight);
-        ctx.strokeRect(x * this.imageWidth, y * this.imageHeight, width * this.imageWidth, height * this.imageHeight);
-        ctx.restore();
+        if (this.shouldApplyOverlayCrop) {
+            // Compute source crop area from image dimensions
+            const sx = x * this.imageWidth;
+            const sy = y * this.imageHeight;
+            const sw = width * this.imageWidth;
+            const sh = height * this.imageHeight;
+
+            canvas.width = sw;
+            canvas.height = sh;
+
+            ctx.drawImage(this.image, sx, sy, sw, sh, 0, 0, sw, sh);
+        } else {
+            // Normal full image draw
+            canvas.width = this.imageWidth;
+            canvas.height = this.imageHeight;
+
+            ctx.drawImage(this.image, 0, 0, this.imageWidth, this.imageHeight);
+
+            // Draw overlay rectangle
+            ctx.save();
+            ctx.strokeStyle = "blue";
+            ctx.lineWidth = 2;
+            ctx.fillStyle = "rgba(0, 0, 255, 0.2)";
+            ctx.fillRect(x * this.imageWidth, y * this.imageHeight, width * this.imageWidth, height * this.imageHeight);
+            ctx.strokeRect(x * this.imageWidth, y * this.imageHeight, width * this.imageWidth, height * this.imageHeight);
+            ctx.restore();
+        }
     },
     startDragging(event: MouseEvent) {
+        if (this.shouldApplyOverlayCrop) return;
         const rect = (this.$refs.canvas as HTMLCanvasElement).getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
@@ -90,7 +125,7 @@ export default defineComponent({
     },
 
     onDrag(event: MouseEvent) {
-        if (!this.isDragging) return;
+        if (!this.isDragging || this.shouldApplyOverlayCrop) return;
 
         const rect = (this.$refs.canvas as HTMLCanvasElement).getBoundingClientRect();
         const x = event.clientX - rect.left;
@@ -115,7 +150,7 @@ export default defineComponent({
     },
 
     stopDragging() {
-        if (!this.isDragging) return;
+        if (!this.isDragging || this.shouldApplyOverlayCrop) return;
         this.isDragging = false;
         this.$emit("update:overlay", { ...this.internalOverlay });
     },
