@@ -56,6 +56,7 @@ export default defineComponent({
     disabled: { type: Boolean, default: false },
     
     confidenceCatalog: { type: Object as () => Record<number, number>, default: {} },
+    soundCatalog: { type: Object as () => Record<number, string>, default: {} },
     useThreholdColors: { type: Boolean, default: false },
     thresholdHigh: { type: Number, default: 80 },
     thresholdLow: { type: Number, default: 30 },

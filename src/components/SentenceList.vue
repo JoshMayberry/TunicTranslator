@@ -27,9 +27,22 @@
             <td class="mdc-data-table__cell has-editable">
               <input v-model="row.title" class="editable-input" @blur="saveRow(row)" />
             </td>
-            <td class="mdc-data-table__cell">
+            <td class="mdc-data-table__cell" :aria-describedby="`tooltip-table-sentence-${index}`">
+              <teleport to="body">
+                <mcw-tooltip
+                  :id="`tooltip-table-sentence-${index}`"
+                  :persistent="true"
+                >
+                  <span>{{ getSentence(row.word_list) }}</span>
+                  <template v-if="row.translation">
+                    <hr>
+                    <span>{{ row.translation }}</span>
+                  </template>
+                </mcw-tooltip>
+              </teleport>
               <RupeeSentence
                 :rupee-list="row.word_list"
+                :use-threhold-colors="useThresholdColors"
                 :confidence-catalog="confidenceCatalog"
                 @click="selectRow(row)"
               />
@@ -58,6 +71,7 @@ import { useRouter } from "vue-router";
 import { Sentence } from "@/server/sentence";
 import debounce from "lodash.debounce";
 import { Sound } from "@/server/sound";
+import { getRupeeInnerValue, getRupeeOuterValue, getTranslation } from "@/models/Rupee";
 
 interface SentenceRow {
   id: number
@@ -88,6 +102,8 @@ export default defineComponent({
       sortAsc: true,
       confidenceCatalog: {} as Record<number, number>,
       router: useRouter(),
+      soundCatalog: {} as Record<number, string>,
+      useThresholdColors: true as boolean,
     };
   },
   async mounted() {
@@ -122,6 +138,9 @@ export default defineComponent({
       try {
         let res = await fetch("/api/sound");
         const soundList = await res.json();
+        this.soundCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, string] {
+          return [sound.id, sound.guessed_sound];
+        }));
         this.confidenceCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, number] {
           return [sound.id, sound.confidence];
         }));
@@ -178,6 +197,9 @@ export default defineComponent({
     },
     selectRow(row: SentenceRow) {
       this.router.push(`/sentence-viewer/${row.id}`);
+    },
+    getSentence(rupeeIdList: Array<number | string | null>): string {
+      return getTranslation(this.soundCatalog, rupeeIdList)
     },
   }
 })

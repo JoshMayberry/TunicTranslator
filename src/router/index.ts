@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import GlobalDashboard from '../components/GlobalDashboard.vue'
 import SentenceViewer from '../components/SentenceViewer.vue'
 import SoundList from '../components/SoundList.vue'
+import Settings from '../components/Settings.vue'
 import SentenceList from '../components/SentenceList.vue'
 
 
@@ -24,12 +25,13 @@ export const routeDefinitions = [
   },
   {
     path: '/sentence-viewer/:id?',
+    pathBase: '/sentence-viewer',
     component: SentenceViewer,
     meta: { navigationLabel: 'Viewer' }
   },
   {
     path: '/settings',
-    component: SentenceViewer,
+    component: Settings,
     meta: { navigationLabel: 'Settings' }
   }
 ]

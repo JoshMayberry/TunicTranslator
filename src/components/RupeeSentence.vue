@@ -1,14 +1,23 @@
 <template>
   <div class="sentence-display" :class="highlightOnHover ? 'sentence-display--highlight-hover' : ''" style="style">
-    <template v-for="(item, index) in rupeeList" :key="index">
+    <template v-for="(rupeeId, index) in rupeeList" :key="index">
       <span
         class="sentence-item-wrapper"
         :class="{ selected: index === selectedIndex }"
-        @click="() => handleClick(item, index)"
+        @click="() => handleClick(rupeeId, index)"
+        :aria-describedby="(tooltipId !== -1) ?`tooltip-sentence-rupee-${tooltipId}-${index}` : ''"
       >
-        <template v-if="typeof item == 'number'">
+          <template v-if="typeof rupeeId == 'number'">
+          <teleport to="body" v-if="(tooltipId !== -1)">
+            <mcw-tooltip
+              :id="`tooltip-sentence-rupee-${tooltipId}-${index}`"
+              :persistent="true"
+            >
+              <span>{{ getSentence([rupeeId]) }}</span>
+            </mcw-tooltip>
+          </teleport>
           <RupeeDisplay
-            :rupee="explodeRupee ? getRupeeInnerRepresentaion(item) : getRupeeFromRepresentation(item)"
+            :rupee="explodeRupee ? getRupeeInnerRepresentaion(rupeeId) : getRupeeFromRepresentation(rupeeId)"
             :width="width"
             :linewidth="linewidth"
             :is-interactive="false"
@@ -17,13 +26,14 @@
             :empty-color="emptyColor"
             :use-threhold-colors="useThreholdColors"
             :confidence-catalog="confidenceCatalog"
+            :sound-catalog="soundCatalog"
             :is-debug="false"
             :is-word="true"
             class="sentence-item"
           />
           <RupeeDisplay
-            v-if="explodeRupee && shouldShowSecondRupee(item)"
-            :rupee="explodeRupee ? getRupeeOuterRepresentaion(item) : getRupeeFromRepresentation(item)"
+            v-if="explodeRupee && shouldShowSecondRupee(rupeeId)"
+            :rupee="explodeRupee ? getRupeeOuterRepresentaion(rupeeId) : getRupeeFromRepresentation(rupeeId)"
             :width="width"
             :linewidth="linewidth"
             :is-interactive="false"
@@ -32,12 +42,13 @@
             :empty-color="emptyColor"
             :use-threhold-colors="useThreholdColors"
             :confidence-catalog="confidenceCatalog"
+            :sound-catalog="soundCatalog"
             :is-debug="false"
             :is-word="true"
             class="sentence-item"
           />
         </template>
-        <span v-else-if="typeof item === 'string'" class="text-block sentence-item">{{ item }}</span>
+        <span v-else-if="typeof rupeeId === 'string'" class="text-block sentence-item">{{ rupeeId }}</span>
         <span v-else class="gap-block sentence-item"> </span>
       </span>
     </template>
@@ -47,7 +58,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
-import { getRupeeInnerValue, getRupeeOuterValue, Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, getTranslation, Rupee } from "@/models/Rupee";
 
 export default defineComponent({
   name: "RupeeSentence",
@@ -69,6 +80,8 @@ export default defineComponent({
     explodeRupee: { type: Boolean, default: false },
     useThreholdColors: { type: Boolean, default: false },
     confidenceCatalog: { type: Object as () => Record<number, number>, default: {} },
+    soundCatalog: { type: Object as () => Record<number, string>, default: {} },
+    tooltipId: { type: Number, default: -1 },
   },
   methods: {
     getRupeeFromRepresentation(representation: number): Rupee {
@@ -91,6 +104,9 @@ export default defineComponent({
       } else {
         this.$emit("select:space", { index });
       }
+    },
+    getSentence(rupeeIdList: Array<number | string | null>): string {
+      return getTranslation(this.soundCatalog, rupeeIdList)
     },
   },
 });

@@ -8,6 +8,13 @@ export interface SoundSentenceUsage {
   word: Array<number>,
 }
 
+export interface PageOverlay {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+}
+
 export interface Sentence {
   id?: number
   title: string
@@ -16,6 +23,7 @@ export interface Sentence {
   confidence: number
   picture: string
   page_number: string
+  page_overlay: PageOverlay
   comment: string
   tags: Array<string>
 }
@@ -28,6 +36,7 @@ interface DbSentence {
   confidence?: number
   picture?: string
   page_number?: string
+  page_overlay: string
   comment?: string
   tags?: string
 }
@@ -43,6 +52,7 @@ export function sentenceEnsureTable(): Promise<void> {
         "comment"	TEXT,
         "picture"	TEXT,
         "page_number" TEXT,
+        "page_overlay" TEXT,
         "word_list"	JSON NOT NULL DEFAULT '[]',
         "tags"	JSON,
         PRIMARY KEY("id" AUTOINCREMENT)
@@ -107,8 +117,9 @@ export function sentenceGetById(id: number): Promise<Sentence | null> {
         comment: row.comment || "",
         confidence: row.confidence || 0,
         page_number: row.page_number || "n/a",
+        page_overlay: JSON.parse(row.page_overlay || "{}"),
         word_list: getWordListFromString(row.word_list),
-        tags: JSON.parse(row.tags || "[]")
+        tags: JSON.parse(row.tags || "[]"),
       };
 
       resolve(sentence);
@@ -130,8 +141,9 @@ export function sentenceGetAll(): Promise<Sentence[]> {
           comment: row.comment || "",
           confidence: row.confidence || 0,
           page_number: row.page_number || "n/a",
+          page_overlay: JSON.parse(row.page_overlay || "{}"),
           word_list: getWordListFromString(row.word_list),
-          tags: JSON.parse(row.tags || "[]")
+          tags: JSON.parse(row.tags || "[]"),
         };
       });
       resolve(parsed)
@@ -145,12 +157,12 @@ export function sentenceSave(data: Sentence): Promise<number> {
 
     const query = isNew
       ? `
-        INSERT INTO sentence (confidence, title, translation, comment, picture, page_number, word_list, tags)
+        INSERT INTO sentence (confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `
       : `
         INSERT OR REPLACE INTO sentence
-        (id, confidence, title, translation, comment, picture, page_number, word_list, tags)
+        (id, confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
@@ -162,6 +174,7 @@ export function sentenceSave(data: Sentence): Promise<number> {
           data.comment,
           data.picture,
           data.page_number,
+          JSON.stringify(data.page_overlay),
           getStringFromWordList(data.word_list),
           JSON.stringify(data.tags),
         ]
@@ -173,6 +186,7 @@ export function sentenceSave(data: Sentence): Promise<number> {
           data.comment,
           data.picture,
           data.page_number,
+          JSON.stringify(data.page_overlay),
           getStringFromWordList(data.word_list),
           JSON.stringify(data.tags),
         ];

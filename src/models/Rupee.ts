@@ -132,3 +132,46 @@ export function getRupeeType(representation: number): SoundType {
 
   return "mixed";
 }
+
+export function getTranslation(soundCatalog: Record<number, string>, rupeeIdList: Array<number | string | null>): string {
+  let answer = "";
+  let inWord = false
+  for (const rupeeId of rupeeIdList) {
+      if ((rupeeId === undefined) || (rupeeId === null)) {
+        answer += " ";
+        inWord = false;
+        continue;
+      }
+
+      if (typeof rupeeId === "string") {
+        inWord = false;
+        answer += rupeeId;
+        continue;
+      }
+
+      if (rupeeId === 0) {
+        inWord = false;
+        answer += (soundCatalog[rupeeId] || "?");
+        continue;
+      }
+
+      let hasOther = false;
+      const inner = getRupeeInnerValue(rupeeId);
+      const outer = getRupeeOuterValue(rupeeId);
+      for (const soundId of [inner, outer]) {
+        if (soundId === 0) {
+          continue;
+        }
+        if (hasOther) {
+          answer += "•";
+        } else if (inWord) {
+          answer += "-";
+        }
+        answer += (soundCatalog[soundId] || "?");
+        hasOther = true
+      }
+      inWord = true
+  }
+
+  return answer;
+}

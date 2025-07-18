@@ -34,7 +34,7 @@
                 :width="10"
                 :linewidth="2"
                 :is-interactive="false"
-                :is-word="false"
+                :is-word="row.rupee.getRepresentation(false) === 0"
                 empty-color="transparent"
                 :inner-color="getColor(row.confidence)"
                 :outer-color="getColor(row.confidence)"
@@ -104,7 +104,7 @@ import RupeeDisplay from "./RupeeDisplay.vue";
 import RupeeSentence from "./RupeeSentence.vue";
 import { useRouter } from "vue-router";
 import { Sound, SoundType } from "@/server/sound";
-import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
 import { Sentence, SoundSentenceUsage } from "@/server/sentence";
 
@@ -298,25 +298,8 @@ export default defineComponent({
     getRupeeType(representation: number): SoundType {
       return getRupeeType(representation);
     },
-    getSentence(rupeeIdList: Array<number>): string {
-      let answer = "";
-      for (const rupeeId of rupeeIdList) {
-          if (rupeeId === 0) {
-            answer += " "
-            continue;
-          }
-
-          const inner = getRupeeInnerValue(rupeeId);
-          const outer = getRupeeOuterValue(rupeeId);
-          for (const soundId of [inner, outer]) {
-            if (soundId === 0) {
-              continue;
-            }
-            answer += (this.soundCatalog[soundId] || "?");
-          }
-      }
-
-      return answer;
+    getSentence(rupeeIdList: Array<number | string | null>): string {
+      return getTranslation(this.soundCatalog, rupeeIdList)
     },
     getColor(confidence: number): string {
       if (!this.useThreholdColors) {

@@ -1,9 +1,14 @@
 <template>
   <div style="display: flex; flex-direction: column;">
-    <mcw-textfield
-      v-model="sentence.title"
-      class="title-box"
-    />
+    <div style="display: flex; flex-direction: row; flex: 1;">
+      <div style="flex: 1">
+        <mcw-textfield
+          v-model="sentence.title"
+          class="title-box"
+        />
+      </div>
+      <mcw-button @click="onNewSentence">+</mcw-button>
+    </div>
     <div style="display: flex; flex-direction: row; flex: 1;">
       <div style="display: flex; flex-direction: column; flex:1;">
         <RupeeSentence
@@ -14,6 +19,8 @@
           :explode-rupee="explodeRupee"
           :use-threhold-colors="useThreholdColors"
           :confidence-catalog="confidenceCatalog"
+          :sound-catalog="soundCatalog"
+          :tooltip-id="0"
           @select:rupee="onRupeeClick"
           @select:text="onTextClick"
           @select:space="onSpaceClick"
@@ -66,7 +73,6 @@
         <RupeeDisplay
           v-if="selectedRupee"
           :rupee="selectedRupee"
-          style="flex:1"
           :is-word="false"
           :is-debug="showDebugValue"
           :disabled="!selectedRupee"
@@ -83,7 +89,16 @@
         <mcw-button @click="onDeselect" :disabled="selectedRupeeIndex === undefined">Deselect</mcw-button>
         <mcw-button @click="onAddRupee">Add Rupee</mcw-button>
         <mcw-button @click="onAddSpace">Add Space</mcw-button>
-        <mcw-button @click="onAddText">Add Text</mcw-button>
+        <mcw-button @click="onAddText('text')">Add Text</mcw-button>
+        <mcw-menu-anchor class="emoji-selector" style="display: flex;">
+          <mcw-button @click="openEmojiMenu = true" style="flex: 1;">Add Emoji</mcw-button>
+          
+          <mcw-menu v-model="openEmojiMenu" @select="onAddEmoji">
+            <mcw-list-item v-for="(emoji, i) in emojiOptions" :key="i">
+              {{ emoji }}
+            </mcw-list-item>
+          </mcw-menu>
+        </mcw-menu-anchor>
         <div style="display: flex; margin-left: auto; margin-right: auto;">
           <mcw-button @click="onMove(true)" :disabled="selectedRupeeIndex === undefined"><-</mcw-button>
           <mcw-button @click="onMove(false)" :disabled="selectedRupeeIndex === undefined">-></mcw-button>
@@ -108,7 +123,7 @@ import { defineComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import RupeeDisplay from './RupeeDisplay.vue';
 import RupeeSentence from './RupeeSentence.vue';
-import { getRupeeInnerValue, getRupeeOuterValue, Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, getTranslation, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
 import { Sentence } from "@/server/sentence";
 import { Sound } from "@/server/sound";
@@ -153,6 +168,8 @@ export default defineComponent({
       soundCatalog: Record<number, string>,
       confidenceCatalog: Record<number, number>,
       useThreholdColors: boolean,
+      openEmojiMenu: boolean,
+      emojiOptions: Array<string>,
     } {
     return {
       sentence: testSentence,
@@ -169,6 +186,8 @@ export default defineComponent({
       soundCatalog: {},
       confidenceCatalog: {},
       useThreholdColors: true,
+      openEmojiMenu: false,
+      emojiOptions: ["📄"],
     };
   },
   computed: {
@@ -279,18 +298,22 @@ export default defineComponent({
       const newRupee = Rupee.fromRepresentation(0).getRepresentation(true);
       const i = this.selectedRupeeIndex ?? this.sentence.word_list.length;
       this.sentence.word_list.splice(i + 1, 0, newRupee);
-      this.selectedRupeeIndex = i + 1;
+      this.selectedRupeeIndex = Math.min(i + 1, this.sentence.word_list.length - 1);
     },
     onAddSpace() {
       const i = this.selectedRupeeIndex ?? this.sentence.word_list.length;
       this.sentence.word_list.splice(i + 1, 0, null);
-      this.selectedRupeeIndex = i + 1;
+      this.selectedRupeeIndex = Math.min(i + 1, this.sentence.word_list.length - 1);
     },
-    onAddText() {
-      const text = "text";
+    onAddText(text: string) {
       const i = this.selectedRupeeIndex ?? this.sentence.word_list.length;
       this.sentence.word_list.splice(i + 1, 0, text);
-      this.selectedRupeeIndex = i + 1;
+      this.selectedRupeeIndex = Math.min(i + 1, this.sentence.word_list.length - 1);
+    },
+    onAddEmoji({ index }: { index: number }) {
+      const emoji = this.emojiOptions[index];
+      this.onAddText(emoji);
+      this.openEmojiMenu  = false;
     },
     onRemove() {
       if (this.selectedRupeeIndex === undefined) {
@@ -380,29 +403,13 @@ export default defineComponent({
       }
     },
     getSentence(rupeeIdList: Array<number | string | null>): string {
-      let answer = "";
-      for (const rupeeId of rupeeIdList) {
-          if ((rupeeId === 0) || (rupeeId === undefined) || (rupeeId === null)) {
-            answer += " "
-            continue;
-          }
-
-          if (typeof rupeeId === "string") {
-            answer += rupeeId;
-            continue;
-          }
-
-          const inner = getRupeeInnerValue(rupeeId);
-          const outer = getRupeeOuterValue(rupeeId);
-          for (const soundId of [inner, outer]) {
-            if (soundId === 0) {
-              continue;
-            }
-            answer += (this.soundCatalog[soundId] || "?");
-          }
-      }
-
-      return answer;
+      return getTranslation(this.soundCatalog, rupeeIdList)
+    },
+    onNewSentence() {
+      this.$router.push('/sentence-viewer'); // Navigate
+      setTimeout(() => {
+        this.$router.go(0); // Force reload
+      }, 100);
     },
   }
 });
@@ -411,5 +418,14 @@ export default defineComponent({
 <style>
 .translation-box label, .title-box label {
   width: 100%;
+}
+
+.emoji-selector .mdc-list-item__content {
+  display: flex;
+}
+
+.emoji-selector .mdc-list-item__primary-text {
+  text-align: center;
+  flex: 1;
 }
 </style>

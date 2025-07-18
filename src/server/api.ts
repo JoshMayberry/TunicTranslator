@@ -4,12 +4,19 @@ import bodyParser from "body-parser"
 import { soundGetAll, soundSave } from "./sound"
 import { sentenceGetAll, sentenceSave, sentenceGetById, Sentence, SoundSentenceUsage } from "./sentence"
 import { getRupeeInnerValue, getRupeeOuterValue } from "@/models/Rupee"
+import { settingGetAll, settingSave } from "./settting"
 
 export const app = express()
 app.use(cors())
 app.use(bodyParser.json())
 // app.use(express.json())
 
+
+app.get("/setting", async (req, res) => res.json(await settingGetAll()))
+app.post("/setting", async (req, res) => {
+  await settingSave(req.body)
+  res.sendStatus(200)
+})
 
 app.get("/sound", async (req, res) => res.json(await soundGetAll()))
 app.post("/sound", async (req, res) => {
@@ -85,11 +92,9 @@ app.get("/sound-sentence-catalog", async function(req, res) {
       // Catalog all the sounds in the list of words
       for (const [wordStartIndex, fullWord] of fullWordList) {
         for (const rupeeId of fullWord) {
-          const inner = getRupeeInnerValue(rupeeId);
-          const outer = getRupeeOuterValue(rupeeId);
-          for (const subRepresentation of [inner, outer]) {
-            if (subRepresentation === 0) {
-              continue;
+          const addToSoundSentenceCatalog = (subRepresentation: number) => {
+            if (sentence.id === undefined) {
+              return;
             }
 
             let sentenceCatalog = soundCatalog[subRepresentation];
@@ -110,6 +115,20 @@ app.get("/sound-sentence-catalog", async function(req, res) {
               word: fullWord,
             });
           }
+
+          if (rupeeId === 0) {
+            addToSoundSentenceCatalog(rupeeId);
+          }
+
+          const inner = getRupeeInnerValue(rupeeId);
+          const outer = getRupeeOuterValue(rupeeId);
+          for (const subRepresentation of [inner, outer]) {
+            if (subRepresentation === 0) {
+              continue;
+            }
+
+            addToSoundSentenceCatalog(subRepresentation);
+          }
         }
       }
     }
@@ -120,6 +139,5 @@ app.get("/sound-sentence-catalog", async function(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 export default app
