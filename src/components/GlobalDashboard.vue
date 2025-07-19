@@ -31,6 +31,7 @@
               :rupee-list="[s.soundId]"
               :confidence-catalog="confidenceCatalog"
               :sound-catalog="soundCatalog"
+              :circle-theory="circleTheory"
             />
             <span class="font-mono" style="margin-top: auto; margin-bottom: auto;">: {{ s.count }}</span>
           </div>
@@ -41,8 +42,7 @@
 </template>
 
 <script lang="ts">
-import { Sentence, SoundSentenceUsage } from "@/server/sentence";
-import { Sound } from "@/server/sound";
+import { Sentence, SoundSentenceUsage, Sound, CircleTheory } from "@/server/types";
 import { defineComponent } from "vue";
 import RupeeSentence from './RupeeSentence.vue';
 
@@ -69,6 +69,9 @@ export default defineComponent({
       confidenceCatalog: {} as Record<number, number>,
       soundCatalog: {} as Record<number, string>,
     };
+  },
+  props: {
+    circleTheory: { type: String as () => CircleTheory, required: true },
   },
   async mounted() {
     await this.loadData();

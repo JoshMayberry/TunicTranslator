@@ -6,6 +6,7 @@
           <tr class="mdc-data-table__header-row">
             <th class="mdc-data-table__header-cell" @click="sortBy('title')">Title</th>
             <th class="mdc-data-table__header-cell">Sentence</th>
+            <th class="mdc-data-table__header-cell" @click="sortBy('order')">Order</th>
             <th class="mdc-data-table__header-cell" @click="sortBy('confidence')">Confidence</th>
             <th class="mdc-data-table__header-cell" @click="sortBy('page_number')">Page</th>
             <th class="mdc-data-table__header-cell" @click="sortBy('comment')">Comment</th>
@@ -13,6 +14,7 @@
           <tr>
             <th><input v-model="filters.title" placeholder="Filter Title" /></th>
             <th></th>
+            <th style="min-width: 110px;"></th>
             <th><input v-model="filters.confidence" placeholder="Filter Confidence" /></th>
             <th><input v-model="filters.page_number" placeholder="Filter Page" /></th>
             <th><input v-model="filters.comment" placeholder="Filter Comment" /></th>
@@ -25,7 +27,7 @@
             :key="index"
           >
             <td class="mdc-data-table__cell has-editable">
-              <input v-model="row.title" class="editable-input" @blur="saveRow(row)" />
+              <input v-model="row.title" class="editable-input" @focus="isEditing=true" @blur="{isEditing=false; saveRow(row);}" />
             </td>
             <td class="mdc-data-table__cell" :aria-describedby="`tooltip-table-sentence-${index}`">
               <teleport to="body">
@@ -52,17 +54,21 @@
                 :rupee-list="row.word_list"
                 :use-threhold-colors="useThresholdColors"
                 :confidence-catalog="confidenceCatalog"
+                :circle-theory="circleTheory"
                 @click="selectRow(row)"
               />
             </td>
             <td class="mdc-data-table__cell has-editable">
-              <input type="number" v-model.number="row.confidence" class="editable-input" @blur="saveRow(row)" />
+              <input type="number" v-model.number="row.order" class="editable-input" @focus="isEditing=true" @blur="{isEditing=false; saveRow(row);}" />
             </td>
             <td class="mdc-data-table__cell has-editable">
-              <input v-model="row.page_number" class="editable-input" @blur="saveRow(row)" />
+              <input type="number" v-model.number="row.confidence" class="editable-input" @focus="isEditing=true" @blur="{isEditing=false; saveRow(row);}" />
             </td>
             <td class="mdc-data-table__cell has-editable">
-              <input v-model="row.comment" class="editable-input" @blur="saveRow(row)" />
+              <input v-model="row.page_number" class="editable-input" @focus="isEditing=true" @blur="{isEditing=false; saveRow(row);}" />
+            </td>
+            <td class="mdc-data-table__cell has-editable">
+              <input v-model="row.comment" class="editable-input" @focus="isEditing=true" @blur="{isEditing=false; saveRow(row);}" />
             </td>
           </tr>
         </tbody>
@@ -77,14 +83,14 @@ import { defineComponent } from "vue";
 import RupeeSentence from "./RupeeSentence.vue";
 import ImageOverlayEditor from "./ImageOverlayEditor.vue";
 import { useRouter } from "vue-router";
-import { PageOverlay, Sentence } from "@/server/sentence";
+import { CircleTheory, PageOverlay, Sentence, Sound } from "@/server/types";
 import debounce from "lodash.debounce";
-import { Sound } from "@/server/sound";
 import { getRupeeInnerValue, getRupeeOuterValue, getTranslation } from "@/models/Rupee";
 import { PageInfo } from "@/models/PageInfo";
 
 interface SentenceRow {
   id: number
+  order: number
   title: string
   word_list: Array<number | string | null>
   translation: string
@@ -103,6 +109,7 @@ export default defineComponent({
   },
   props: {
     pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true },
+    circleTheory: { type: String as () => CircleTheory, required: true },
   },
   data() {
     return {
@@ -113,12 +120,15 @@ export default defineComponent({
         comment: "",
         page_number: "",
       },
-      sortKey: "" as keyof SentenceRow | "",
+      sortKey: "order" as (keyof SentenceRow) | "",
       sortAsc: true,
       confidenceCatalog: {} as Record<number, number>,
       router: useRouter(),
       soundCatalog: {} as Record<number, string>,
       useThresholdColors: true as boolean,
+      isEditing: false as boolean,
+      lastSortedCache: [] as SentenceRow[],
+
     };
   },
   async mounted() {
@@ -126,6 +136,10 @@ export default defineComponent({
   },
   computed: {
     filteredAndSortedData(): SentenceRow[] {
+      if (this.isEditing) {
+        return this.lastSortedCache;
+      }
+
       let data = this.tableData.filter(row => {
         return (
           row.title.toLowerCase().includes(this.filters.title.toLowerCase()) &&
@@ -139,12 +153,28 @@ export default defineComponent({
         data = [...data].sort((a, b) => {
           const valA = a[key]
           const valB = b[key]
+
+          if (key === 'order') {
+            const isAZero = valA === 0;
+            const isBZero = valB === 0;
+
+            if (isAZero && !isBZero) return 1; // A goes after B
+            if (!isAZero && isBZero) return -1; // A goes before B
+            // If both are zero, fall through to ID sort
+          }
+
+          if (valA === valB) {
+            // Secondary sort by ID if primary values are equal
+            return a.id - b.id;
+          }
+          
           return this.sortAsc
             ? valA > valB ? 1 : -1
             : valA < valB ? 1 : -1
         });
       }
 
+      this.lastSortedCache = data;
       return data;
     }
   },
@@ -166,6 +196,7 @@ export default defineComponent({
         this.tableData = sentenceList.map(function(sentence: Sentence): SentenceRow {
           return {
             id: sentence.id || -1,
+            order: sentence.order,
             title: sentence.title,
             word_list: sentence.word_list,
             translation: sentence.translation,
@@ -183,6 +214,7 @@ export default defineComponent({
     saveRow: debounce(async function(row: SentenceRow) {
       const payload = {
         id: row.id,
+        order: row.order,
         title: row.title,
         word_list: row.word_list,
         translation: row.translation,
@@ -216,7 +248,7 @@ export default defineComponent({
       this.router.push(`/sentence-viewer/${row.id}`);
     },
     getSentence(rupeeIdList: Array<number | string | null>): string {
-      return getTranslation(this.soundCatalog, rupeeIdList)
+      return getTranslation(this.soundCatalog, rupeeIdList, this.circleTheory)
     },
   }
 })

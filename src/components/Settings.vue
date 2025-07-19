@@ -1,7 +1,6 @@
 <template>
-  <div class="p-4 space-y-2">
+  <div class="p-4 space-y-2" style="display:flex; flex-direction: column;">
     <h3 class="font-semibold">Pages Found</h3>
-
     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
       <div
         v-for="pageInfo of pageInfoList"
@@ -16,6 +15,23 @@
         <label :for="`page-info-${pageInfo.number}`">{{ pageInfo.label }}</label>
       </div>
     </div>
+    <hr>
+    <h3 class="font-semibold">Mechanics</h3>
+    <mcw-select
+      v-model="settings.circle_theory"
+      :value="settings.circle_theory"
+      label="Circle Theory"
+    >
+      <template
+        v-for="key in circleTheoryOptions"
+        :key="key"
+      >
+        <mcw-list-item
+          :value="key"
+          :data-value="key"
+        >{{ key }}</mcw-list-item>
+      </template>
+    </mcw-select>
   </div>
   <div style="font-size: 12px; color: gray; margin-left: auto;">
     <span v-if="isSaving">Saving…</span>
@@ -26,13 +42,14 @@
 <script lang="ts">
 import { defineComponent, watch } from "vue";
 import debounce from "lodash.debounce";
-import { Settings } from "@/server/settting";
+import { CircleTheory, Settings, circleTheoryOptions } from "@/server/types";
 import { PageInfo, pageInfoList, updatePageInfoList } from "@/models/PageInfo";
 
 export default defineComponent({
   name: "PageCheckboxList",
   props: {
     pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true },
+    circleTheory: { type: String as () => CircleTheory, required: true }, // Needed so it does not pass it down further
   },
   data() {
     return {
@@ -54,7 +71,7 @@ export default defineComponent({
     }, 1000);
   },
   watch: {
-    'settings.found_pages': {
+    settings: {
       handler() {
         if (!this.canSave) {
           return; // Sill loading
@@ -62,6 +79,11 @@ export default defineComponent({
         this.debouncedSave();
       },
       deep: true,
+    }
+  },
+  computed: {
+    circleTheoryOptions() {
+      return circleTheoryOptions;
     }
   },
   methods: {

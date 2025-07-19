@@ -1,4 +1,3 @@
-// db.ts
 import sqlite3 from 'sqlite3'
 
 console.log("Opening database", process.cwd())

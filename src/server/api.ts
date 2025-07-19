@@ -1,10 +1,10 @@
 import cors from "cors"
 import express from "express"
 import bodyParser from "body-parser"
-import { soundGetAll, soundSave } from "./sound"
+import { soundGetAll, soundSave, soundSaveGuess } from "./sound"
 import { sentenceGetAll, sentenceSave, sentenceGetById, Sentence, SoundSentenceUsage } from "./sentence"
 import { getRupeeInnerValue, getRupeeOuterValue } from "@/models/Rupee"
-import { settingGetAll, settingSave } from "./settting"
+import { settingGetAll, settingSave } from "./setting"
 
 export const app = express()
 app.use(cors())
@@ -21,6 +21,10 @@ app.post("/setting", async (req, res) => {
 app.get("/sound", async (req, res) => res.json(await soundGetAll()))
 app.post("/sound", async (req, res) => {
   await soundSave(req.body)
+  res.sendStatus(200)
+})
+app.post("/sound/update-guess", async (req, res) => {
+  await soundSaveGuess(req.body)
   res.sendStatus(200)
 })
 

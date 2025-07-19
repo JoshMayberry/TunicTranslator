@@ -14,7 +14,7 @@
 
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
-import { PageOverlay } from "@/server/sentence";
+import { PageOverlay } from "@/server/types";
 
 export default defineComponent({
   name: "ImageOverlayEditorCanvas",

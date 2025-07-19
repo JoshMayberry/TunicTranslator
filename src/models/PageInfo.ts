@@ -531,45 +531,153 @@ export const pageInfoList: Record<string, PageInfo> = {
   },
   t2: {
     number: `t2`,
+    label: `Talk: Broken Statue`,
+    isFound: false,
+    imagePath: `/talk/broken statue 1.jpg`,
+  },
+  t3: {
+    number: `t3`,
     label: `Talk: Broken Teleporter`,
     isFound: false,
     imagePath: `/talk/broken teleporter.jpg`,
   },
-  t3: {
-    number: `t3`,
+  t4: {
+    number: `t4`,
     label: `Talk: Candle`,
     isFound: false,
     imagePath: `/talk/candle combined.jpg`,
   },
-  t4: {
-    number: `t4`,
+  t5: {
+    number: `t5`,
+    label: `Talk: Fish`,
+    isFound: false,
+    imagePath: `/talk/fish combined.jpg`,
+  },
+  t6: {
+    number: `t6`,
+    label: `Talk: Fountain`,
+    isFound: false,
+    imagePath: `/talk/fountain.jpg`,
+  },
+  t7: {
+    number: `t7`,
+    label: `Talk: Fourth Key`,
+    isFound: false,
+    imagePath: `/talk/fourth key.jpg`,
+  },
+  t8: {
+    number: `t8`,
+    label: `Talk: Garden`,
+    isFound: false,
+    imagePath: `/talk/garden 1.jpg`,
+  },
+  t9: {
+    number: `t9`,
     label: `Talk: Graveyard Entrance`,
     isFound: false,
     imagePath: `/talk/grave entrance combined.jpg`,
   },
-  t5: {
-    number: `t5`,
+  t10: {
+    number: `t10`,
     label: `Talk: Graveyard`,
     isFound: false,
     imagePath: `/talk/Graveyard 1.jpg`,
   },
-  t6: {
-    number: `t6`,
+  t11: {
+    number: `t11`,
+    label: `Talk: Green Seal`,
+    isFound: false,
+    imagePath: `/talk/green seal.jpg`,
+  },
+  t12: {
+    number: `t12`,
+    label: `Talk: Incredible Treasure`,
+    isFound: false,
+    imagePath: `/talk/incredible treasure combined.jpg`,
+  },
+  t13: {
+    number: `t13`,
+    label: `Talk: Island`,
+    isFound: false,
+    imagePath: `/talk/island combined.jpg`,
+  },
+  t14: {
+    number: `t14`,
     label: `Talk: Librarian`,
     isFound: false,
     imagePath: `/talk/libraryan combined.jpg`,
   },
-  t7: {
-    number: `t7`,
+  t15: {
+    number: `t15`,
+    label: `Talk: Looking`,
+    isFound: false,
+    imagePath: `/talk/looking.jpg`,
+  },
+  t16: {
+    number: `t16`,
     label: `Talk: Mailbox`,
     isFound: false,
     imagePath: `/talk/Mailbox combined.jpg`,
   },
-  t8: {
-    number: `t8`,
+  t17: {
+    number: `t17`,
+    label: `Talk: Pose`,
+    isFound: false,
+    imagePath: `/talk/pose.jpg`,
+  },
+  t18: {
+    number: `t18`,
+    label: `Talk: Red Seal`,
+    isFound: false,
+    imagePath: `/talk/red seal.jpg`,
+  },
+  t19: {
+    number: `t19`,
+    label: `Talk: Seal Key`,
+    isFound: false,
+    imagePath: `/talk/seal down combined.jpg`,
+  },
+  t20: {
+    number: `t20`,
+    label: `Talk: Sitting`,
+    isFound: false,
+    imagePath: `/talk/sitting.jpg`,
+  },
+  t21: {
+    number: `t21`,
     label: `Talk: Sleeping`,
     isFound: false,
     imagePath: `/talk/sleeping combined.jpg`,
+  },
+  t22: {
+    number: `t22`,
+    label: `Talk: Something Bad`,
+    isFound: false,
+    imagePath: `/talk/something bad.jpg`,
+  },
+  t23: {
+    number: `t23`,
+    label: `Talk: Statue`,
+    isFound: false,
+    imagePath: `/talk/statue.jpg`,
+  },
+  t24: {
+    number: `t24`,
+    label: `Talk: Storage`,
+    isFound: false,
+    imagePath: `/talk/storage.jpg`,
+  },
+  t25: {
+    number: `t25`,
+    label: `Talk: Well`,
+    isFound: false,
+    imagePath: `/talk/well combined.jpg`,
+  },
+  t26: {
+    number: `t26`,
+    label: `Talk: Windmill`,
+    isFound: false,
+    imagePath: `/talk/windmill combined.jpg`,
   },
 }
 

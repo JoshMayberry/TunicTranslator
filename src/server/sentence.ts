@@ -1,51 +1,12 @@
-import { Rupee } from '@/models/Rupee'
 import { db } from './db'
-
-
-export interface SoundSentenceUsage {
-  rupeeId: number,
-  wordStartIndex: number,
-  word: Array<number>,
-}
-
-export interface PageOverlay {
-  x?: number
-  y?: number
-  width?: number
-  height?: number
-}
-
-export interface Sentence {
-  id?: number
-  title: string
-  word_list: Array<number | string | null>
-  translation: string
-  confidence: number
-  picture: string
-  page_number: string
-  page_overlay: PageOverlay
-  comment: string
-  tags: Array<string>
-}
-
-interface DbSentence {
-  id: number
-  title?: string
-  word_list?: string
-  translation?: string
-  confidence?: number
-  picture?: string
-  page_number?: string
-  page_overlay: string
-  comment?: string
-  tags?: string
-}
+import { Sentence, DbSentence } from "./types"
 
 export function sentenceEnsureTable(): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(`
       CREATE TABLE "sentence" (
         "id"	INTEGER NOT NULL UNIQUE,
+        "order"	INTEGER DEFAULT 0,
         "confidence"	INTEGER NOT NULL,
         "title"	TEXT NOT NULL,
         "translation"	TEXT,
@@ -111,6 +72,7 @@ export function sentenceGetById(id: number): Promise<Sentence | null> {
 
       const sentence: Sentence = {
         id: row.id,
+        order: row.order,
         title: row.title || "",
         translation: row.translation || "",
         picture: row.picture || "",
@@ -135,6 +97,7 @@ export function sentenceGetAll(): Promise<Sentence[]> {
       const parsed: Array<Sentence> = rows.map(row => {
         return {
           id: row.id,
+          order: row.order,
           title: row.title || "",
           translation: row.translation || "",
           picture: row.picture || "",
@@ -157,17 +120,18 @@ export function sentenceSave(data: Sentence): Promise<number> {
 
     const query = isNew
       ? `
-        INSERT INTO sentence (confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sentence ("order", confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       : `
         INSERT OR REPLACE INTO sentence
-        (id, confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, "order", confidence, title, translation, comment, picture, page_number, page_overlay, word_list, tags)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
     const params = isNew
       ? [
+          data.order,
           data.confidence,
           data.title,
           data.translation,
@@ -180,6 +144,7 @@ export function sentenceSave(data: Sentence): Promise<number> {
         ]
       : [
           data.id,
+          data.order,
           data.confidence,
           data.title,
           data.translation,

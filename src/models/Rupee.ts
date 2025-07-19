@@ -1,6 +1,6 @@
 // src/models/Rupee.ts
 
-import { SoundType } from '@/server/sound'
+import { SoundType, CircleTheory } from '@/server/types'
 
 export interface RupeeSegmentState {
   outer?: {
@@ -133,7 +133,7 @@ export function getRupeeType(representation: number): SoundType {
   return "mixed";
 }
 
-export function getTranslation(soundCatalog: Record<number, string>, rupeeIdList: Array<number | string | null>): string {
+export function getTranslation(soundCatalog: Record<number, string>, rupeeIdList: Array<number | string | null>, circleTheory: CircleTheory): string {
   let answer = "";
   let inWord = false
   for (const rupeeId of rupeeIdList) {
@@ -158,7 +158,9 @@ export function getTranslation(soundCatalog: Record<number, string>, rupeeIdList
       let hasOther = false;
       const inner = getRupeeInnerValue(rupeeId);
       const outer = getRupeeOuterValue(rupeeId);
-      for (const soundId of [inner, outer]) {
+      const hasCircledo = getRupeeCircledo(rupeeId) === 1;
+      const myList = ((circleTheory === "Outer First") && hasCircledo) ? [outer, inner] : [inner, outer];
+      for (const soundId of myList) {
         if (soundId === 0) {
           continue;
         }

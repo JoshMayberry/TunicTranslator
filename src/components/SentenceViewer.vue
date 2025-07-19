@@ -20,6 +20,7 @@
           :use-threhold-colors="useThreholdColors"
           :confidence-catalog="confidenceCatalog"
           :sound-catalog="soundCatalog"
+          :circle-theory="circleTheory"
           :tooltip-id="0"
           @select:rupee="onRupeeClick"
           @select:text="onTextClick"
@@ -28,12 +29,10 @@
         <mcw-textfield
           v-model="directTranslation"
           class="translation-box"
-          label="DirectTranslation"
+          label="Direct Translation"
           multiline
           aria-readonly="true"
-          aria-disabled="true"
           readonly
-          disabled
         />
         <mcw-textfield
           v-model="sentence.translation"
@@ -92,7 +91,7 @@
           @update:rupee="onUpdateRupee($event)"
           :use-threhold-colors="useThreholdColors"
           :confidence-catalog="confidenceCatalog"
-        ></RupeeDisplay>
+        />
         <mcw-textfield
           v-if="typeof selectedRupeeValue === 'string'"
           v-model="rupeePlainText"
@@ -101,6 +100,8 @@
         <mcw-button @click="explodeRupee = !explodeRupee">Toggle<br>Explode</mcw-button>
         <mcw-button @click="useThreholdColors = !useThreholdColors">Toggle<br>Threshold</mcw-button>
         <mcw-button @click="onDeselect" :disabled="selectedRupeeIndex === undefined">Deselect</mcw-button>
+        <mcw-button @click="showSoundEditor = !showSoundEditor" :disabled="!selectedRupee">Edit Sound</mcw-button>
+        <mcw-button @click="onDuplicate" :disabled="!selectedRupee">Duplicate</mcw-button>
         <mcw-button @click="onAddRupee">Add Rupee</mcw-button>
         <mcw-button @click="onAddSpace">Add Space</mcw-button>
         <mcw-button @click="onAddText('text')">Add Text</mcw-button>
@@ -122,6 +123,72 @@
     </div>
   </div>
 
+  <mcw-dialog
+    v-model="showSoundEditor"
+    v-if="selectedRupee"
+    escape-key-action="close"
+    scrim-click-action="close"
+    :scrollable="true"
+    @mdcdialog:opening="onOpenEditDialog"
+    @mdcdialog:closing="onCloseEditDialog"
+  >
+    <mcw-dialog-title>Edit Sound</mcw-dialog-title>
+    <mcw-dialog-content>
+      <div style="display: flex; flex-direction: row;">
+        <div style="display: flex; flex-direction: column;" v-if="getSoundInner(selectedRupee).getRepresentation() !== 0">
+          <RupeeDisplay
+            :rupee="getSoundInner(selectedRupee)"
+            :is-interactive="false"
+            :is-word="false"
+            empty-color="transparent"
+            :use-threhold-colors="useThreholdColors"
+            :confidence-catalog="confidenceCatalog"
+          />
+          <mcw-textfield
+            v-model="innerSoundValue"
+            class="title-box"
+            label="Sound"
+            :disabled="!canEditSound"
+          />
+          <mcw-textfield
+            v-model="innerSoundConfidence"
+            type="number"
+            class="title-box"
+            label="Confidence"
+            :disabled="!canEditSound"
+            :step="10"
+          />
+          <mcw-button @click="goToSound(getSoundInner(selectedRupee).getRepresentation())">View Context</mcw-button>
+        </div>
+        <div style="display: flex; flex-direction: column;" v-if="getSoundOuter(selectedRupee).getRepresentation() !== 0">
+          <RupeeDisplay
+            :rupee="getSoundOuter(selectedRupee)"
+            :is-interactive="false"
+            :is-word="false"
+            empty-color="transparent"
+            :use-threhold-colors="useThreholdColors"
+            :confidence-catalog="confidenceCatalog"
+          />
+          <mcw-textfield
+            v-model="outerSoundValue"
+            class="title-box"
+            label="Sound"
+            :disabled="!canEditSound"
+          />
+          <mcw-textfield
+            v-model="outerSoundConfidence"
+            type="number"
+            class="title-box"
+            label="Confidence"
+            :disabled="!canEditSound"
+            :step="10"
+          />
+          <mcw-button @click="goToSound(getSoundOuter(selectedRupee).getRepresentation())">View Context</mcw-button>
+        </div>
+      </div>
+    </mcw-dialog-content>
+  </mcw-dialog>
+
   <mcw-snackbar-queue
     ref="snackbarQueue"
     v-model:snack="snackbarNextMessage"
@@ -134,14 +201,14 @@ import { useRoute, useRouter } from "vue-router";
 import RupeeDisplay from './RupeeDisplay.vue';
 import RupeeSentence from './RupeeSentence.vue';
 import ImageOverlayEditor from './ImageOverlayEditor.vue';
-import { getRupeeInnerValue, getRupeeOuterValue, getTranslation, Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
-import { PageOverlay, Sentence } from "@/server/sentence";
-import { Sound } from "@/server/sound";
+import { CircleTheory, PageOverlay, Sentence, Sound } from "@/server/types";
 import { PageInfo } from "@/models/PageInfo";
 
 const testSentence: Sentence = {
   id: undefined,
+  order: 0,
   title: "test",
   word_list: [123, 7289, 8, null, 2, "lorem ipsum", 73, 83],
   translation: "lorem ipsum dolor sit amet",
@@ -162,7 +229,8 @@ export default defineComponent({
   },
   props: {
     showDebugValue: { type: Boolean, default: true },
-    pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true }
+    pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true },
+    circleTheory: { type: String as () => CircleTheory, required: true },
   },
   data(): {
       sentence: Sentence,
@@ -180,8 +248,16 @@ export default defineComponent({
       soundCatalog: Record<number, string>,
       confidenceCatalog: Record<number, number>,
       useThreholdColors: boolean,
+      showSoundEditor: boolean,
       openEmojiMenu: boolean,
       emojiOptions: Array<string>,
+      innerSoundValue: string,
+      outerSoundValue: string,
+      innerSoundConfidence: number,
+      outerSoundConfidence: number,
+      soundEditedInner: boolean,
+      soundEditedOuter: boolean,
+      canEditSound: boolean,
     } {
     return {
       sentence: testSentence,
@@ -196,11 +272,19 @@ export default defineComponent({
       canSave: false,
       doImageMask: true,
       explodeRupee: false,
+      showSoundEditor: false,
       soundCatalog: {},
       confidenceCatalog: {},
       useThreholdColors: true,
       openEmojiMenu: false,
       emojiOptions: ["📄"],
+      innerSoundValue: "",
+      outerSoundValue: "",
+      soundEditedInner: false,
+      soundEditedOuter: false,
+      innerSoundConfidence: 0,
+      outerSoundConfidence: 0,
+      canEditSound: false,
     };
   },
   computed: {
@@ -247,6 +331,7 @@ export default defineComponent({
       // New sentence mode
       this.sentence = {
         id: undefined,
+        order: 0,
         title: "",
         word_list: [],
         translation: "",
@@ -300,10 +385,39 @@ export default defineComponent({
       },
       deep: true
     },
+    innerSoundValue() {
+      if (this.canEditSound) {
+        this.soundEditedInner = true;
+      }
+    },
+    outerSoundValue() {
+      if (this.canEditSound) {
+        this.soundEditedOuter = true;
+      }
+    },
+    innerSoundConfidence() {
+      if (this.canEditSound) {
+        this.soundEditedInner = true;
+      }
+    },
+    outerSoundConfidence() {
+      if (this.canEditSound) {
+        this.soundEditedOuter = true;
+      }
+    },
   },
   methods: {
     onDeselect() {
       this.selectedRupeeIndex = undefined;
+    },
+    onDuplicate() {
+      if (this.selectedRupeeIndex === undefined) {
+        return;
+      }
+      const newRupee = this.sentence.word_list[this.selectedRupeeIndex];
+      const i = this.selectedRupeeIndex ?? this.sentence.word_list.length;
+      this.sentence.word_list.splice(i + 1, 0, newRupee);
+      this.selectedRupeeIndex = Math.min(i + 1, this.sentence.word_list.length - 1);
     },
     onAddRupee() {
       const newRupee = Rupee.fromRepresentation(0).getRepresentation(true);
@@ -414,13 +528,80 @@ export default defineComponent({
       }
     },
     getSentence(rupeeIdList: Array<number | string | null>): string {
-      return getTranslation(this.soundCatalog, rupeeIdList)
+      return getTranslation(this.soundCatalog, rupeeIdList, this.circleTheory)
     },
     onNewSentence() {
       this.$router.push('/sentence-viewer'); // Navigate
       setTimeout(() => {
         this.$router.go(0); // Force reload
       }, 100);
+    },
+    getSoundInner(rupee: Rupee): Rupee {
+      return Rupee.fromRepresentation(getRupeeInnerValue(rupee.getRepresentation()));
+    },
+    getSoundOuter(rupee: Rupee): Rupee {
+      return Rupee.fromRepresentation(getRupeeOuterValue(rupee.getRepresentation()));
+    },
+    async goToSound(soundId: number) {
+      await this.onCloseEditDialog();
+      this.router.push(`/sound-list/${soundId}`);
+    },
+    onOpenEditDialog() {
+      if (!this.selectedRupee) {
+        return;
+      }
+
+      const soundIdInner = getRupeeInnerValue(this.selectedRupee.getRepresentation())
+      const soundIdOuter = getRupeeOuterValue(this.selectedRupee.getRepresentation())
+      this.innerSoundValue = this.soundCatalog[soundIdInner] || "";
+      this.outerSoundValue = this.soundCatalog[soundIdOuter] || "";
+      this.innerSoundConfidence = this.confidenceCatalog[soundIdInner] || 0;
+      this.outerSoundConfidence = this.confidenceCatalog[soundIdOuter] || 0;
+      this.soundEditedInner = false
+      this.soundEditedOuter = false
+      setTimeout(() => {
+        this.canEditSound = true
+      }, 300);
+    },
+    async onCloseEditDialog() {
+      this.canEditSound = false
+      if (!this.selectedRupee) {
+        return;
+      }
+
+      if (this.soundEditedInner) {
+        const soundId = getRupeeInnerValue(this.selectedRupee.getRepresentation());
+        console.log("Updating Inner Sound");
+        await fetch('/api/sound/update-guess', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: soundId,
+            guessed_sound: this.innerSoundValue,
+            confidence: this.innerSoundConfidence,
+          }),
+        });
+
+        this.soundCatalog[soundId] = this.innerSoundValue;
+        this.confidenceCatalog[soundId] = this.innerSoundConfidence;
+      }
+
+      if (this.soundEditedOuter) {
+        const soundId = getRupeeOuterValue(this.selectedRupee.getRepresentation());
+        console.log("Updating Outer Sound");
+        await fetch('/api/sound/update-guess', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: soundId,
+            guessed_sound: this.outerSoundValue,
+            confidence: this.outerSoundConfidence,
+          }),
+        });
+
+        this.soundCatalog[soundId] = this.outerSoundValue;
+        this.confidenceCatalog[soundId] = this.outerSoundConfidence;
+      }
     },
   }
 });
@@ -439,4 +620,9 @@ export default defineComponent({
   text-align: center;
   flex: 1;
 }
+
+.mdc-text-field__resizer {
+  height: 10vh;
+}
+
 </style>

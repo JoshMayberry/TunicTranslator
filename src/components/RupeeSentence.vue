@@ -63,17 +63,16 @@
 import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
 import { getRupeeInnerValue, getRupeeOuterValue, getTranslation, Rupee } from "@/models/Rupee";
+import { CircleTheory } from "@/server/types"
 
 export default defineComponent({
   name: "RupeeSentence",
   components: { RupeeDisplay },
   emits: ["select:rupee", "select:space", "select:text"],
   props: {
-    rupeeList: {
-      type: Array as () => Array<number | string | null>,
-      required: true,
-    },
+    rupeeList: { type: Array as () => Array<number | string | null>, required: true },
     style: { },
+    circleTheory: { type: String as () => CircleTheory, required: true },
     width: { type: Number, default: 10 },
     linewidth: { type: Number, default: 2 },
     outerColor: { type: String, default: "black" },
@@ -112,7 +111,7 @@ export default defineComponent({
       }
     },
     getSentence(rupeeIdList: Array<number | string | null>): string {
-      return getTranslation(this.soundCatalog, rupeeIdList)
+      return getTranslation(this.soundCatalog, rupeeIdList, this.circleTheory)
     },
   },
 });

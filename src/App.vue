@@ -4,7 +4,7 @@
     <NavigationBar class="mdc-top-app-bar--fixed-adjust" />
     
     <main class="p-4">
-      <router-view :page-info-list="pageInfoListRef" />
+      <router-view :page-info-list="pageInfoListRef" :circle-theory="circleTheoryRef" />
     </main>
   </div>
 </template>
@@ -13,35 +13,35 @@
 import AppBar from './components/AppBar.vue';
 import NavigationBar from './components/NavigationBar.vue';
 import { onMounted, ref } from 'vue'
-import { Settings } from './server/settting';
+import { CircleTheory, Settings } from './server/types';
 import { PageInfo, pageInfoList, updatePageInfoList } from './models/PageInfo';
 // import { loadWords, loadSentences, loadSymbols } from './services/api'
 // import SaveAllPending from './components/SaveAllPending.vue'
 // import { autoSync } from './stores/settings'
 
-const pageInfoListRef = ref<Record<string, PageInfo>>({})
-
+const pageInfoListRef = ref<Record<string, PageInfo>>({});
+const circleTheoryRef = ref<CircleTheory>("Nothing");
 
 onMounted(async () => {
+  try {
+    const res = await fetch("/api/setting");
+    const data = await res.json();
 
-      try {
-        const res = await fetch("/api/setting");
-        const data = await res.json();
+    const filledPages: Record<string, boolean> = {};
+    for (const pageInfo of Object.values(pageInfoList)) {
+      filledPages[pageInfo.number] = data.found_pages?.[pageInfo.number] || false;
+    }
 
-        const filledPages: Record<string, boolean> = {};
-        for (const pageInfo of Object.values(pageInfoList)) {
-          filledPages[pageInfo.number] = data.found_pages?.[pageInfo.number] || false;
-        }
+    const settings: Settings = {
+      ...data,
+      found_pages: filledPages,
+    };
 
-        const settings: Settings = {
-          ...data,
-          found_pages: filledPages,
-        };
-
-        pageInfoListRef.value = updatePageInfoList(settings.found_pages);
-      } catch (err) {
-        console.error("Failed to load settings", err);
-      }
+    circleTheoryRef.value = settings.circle_theory;
+    pageInfoListRef.value = updatePageInfoList(settings.found_pages);
+  } catch (err) {
+    console.error("Failed to load settings", err);
+  }
 
 
   // const res = await fetch('/api/symbols')

@@ -114,6 +114,13 @@ export default defineComponent({
       },
       immediate: false,  // Wait until mounted to listen
       deep: false
+    },
+    confidenceCatalog: {
+      handler() {
+        this.update();
+      },
+      immediate: false,  // Wait until mounted to listen
+      deep: true
     }
   },
   methods: {

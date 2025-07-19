@@ -88,6 +88,7 @@
                   :rupee-list="wordUsage.word"
                   :highlight-on-hover="true"
                   :highlight-sound="soundUsage.soundId"
+                  :circle-theory="circleTheory"
                   @select:rupee="goToUsage(soundUsage, wordUsage.wordStartIndex + $event.index)"
                 />
               </div>
@@ -103,11 +104,10 @@
 import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
 import RupeeSentence from "./RupeeSentence.vue";
-import { useRouter } from "vue-router";
-import { Sound, SoundType } from "@/server/sound";
+import { useRoute, useRouter } from "vue-router";
+import { Sentence, SoundSentenceUsage, Sound, SoundType, CircleTheory } from "@/server/types";
 import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
-import { Sentence, SoundSentenceUsage } from "@/server/sentence";
 
 interface SoundRow {
   rupee: Rupee
@@ -146,11 +146,34 @@ export default defineComponent({
       thresholdHigh: 80,
       thresholdLow: 30,
       showSoundContext: false,
-      router: useRouter(),
+      preSelectedIdRaw: "" as string,
     };
+  },
+  props: {
+    circleTheory: { type: String as () => CircleTheory, required: true },
+  },
+  setup() {
+    const route = useRoute();
+    const router = useRouter();
+    return { route, router };
+  },
+  created() {
+    this.preSelectedIdRaw = `${this.route.params.id}`;
   },
   async mounted() {
     await this.loadData();
+
+    if (this.preSelectedIdRaw) {
+      const preSelectedId = parseInt(this.preSelectedIdRaw)
+      if (!isNaN(preSelectedId)) {
+        for (const row of this.tableData) {
+          if (row.rupee.getRepresentation(false) === preSelectedId) {
+            this.selectRow(row);
+            break;
+          }
+        }
+      }
+    }
   },
   computed: {
     filteredAndSortedData(): SoundRow[] {
@@ -249,7 +272,7 @@ export default defineComponent({
       }
     },
     selectRow(row: SoundRow) {
-      console.log("@selectRow", this);
+      console.log("@selectRow", row);
       this.selectedRow = row;
       this.showSoundContext = true;
     },
@@ -300,7 +323,7 @@ export default defineComponent({
       return getRupeeType(representation);
     },
     getSentence(rupeeIdList: Array<number | string | null>): string {
-      return getTranslation(this.soundCatalog, rupeeIdList)
+      return getTranslation(this.soundCatalog, rupeeIdList, this.circleTheory)
     },
     getColor(confidence: number): string {
       if (!this.useThreholdColors) {

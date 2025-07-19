@@ -1,24 +1,5 @@
 import { db } from './db'
-
-export type SoundType = "inner" | "outer" | "mixed" | "empty"
-
-export interface Sound {
-  id: number
-  type: SoundType | ""
-  guessed_sound: string
-  alternate_guesses: Array<string>
-  confidence: number
-  comment: string
-}
-
-interface DbSound {
-  id: number
-  type?: string
-  guessed_sound?: string
-  alternate_guesses?: string
-  confidence?: number
-  comment?: string
-}
+import { SoundType, Sound, DbSound } from "./types"
 
 export function soundEnsureTable(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -69,6 +50,23 @@ export function soundSave(data: Sound): Promise<void> {
       JSON.stringify(data.alternate_guesses || []),
       data.confidence,
       data.comment
+    ], err => {
+      if (err) return reject(err)
+      resolve()
+    })
+  })
+}
+
+export function soundSaveGuess(data: Sound): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(`
+      INSERT OR REPLACE INTO sound
+      (id, guessed_sound, confidence)
+      VALUES (?, ?, ?)
+    `, [
+      data.id,
+      data.guessed_sound,
+      data.confidence,
     ], err => {
       if (err) return reject(err)
       resolve()

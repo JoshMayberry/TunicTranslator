@@ -14,7 +14,8 @@ export const routeDefinitions = [
     meta: { navigationLabel: 'Dashboard' }
   },
   {
-    path: '/sound-list',
+    path: '/sound-list/:id?',
+    pathBase: '/sound-list',
     component: SoundList,
     meta: { navigationLabel: 'Sounds' }
   },
