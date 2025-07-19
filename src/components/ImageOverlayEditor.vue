@@ -67,6 +67,7 @@ export default defineComponent({
   },
   methods: {
     async loadImage() {
+      this.image = null;
       const img = new Image();
       img.src = this.src;
       img.onload = () => {
@@ -74,6 +75,12 @@ export default defineComponent({
         this.imageHeight = img.height;
         this.image = img;
         this.draw();
+      };
+      img.onerror = (err) => {
+        console.error("@loadImage.IMAGE_LOAD_ERROR", {
+          src: this.src,
+          error: err,
+        });
       };
     },
     draw() {

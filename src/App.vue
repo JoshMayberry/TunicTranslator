@@ -29,8 +29,8 @@ onMounted(async () => {
         const data = await res.json();
 
         const filledPages: Record<string, boolean> = {};
-        for (let index = 0; index <= 55; index++) {
-          filledPages[index] = data.found_pages?.[index] || false;
+        for (const pageInfo of Object.values(pageInfoList)) {
+          filledPages[pageInfo.number] = data.found_pages?.[pageInfo.number] || false;
         }
 
         const settings: Settings = {

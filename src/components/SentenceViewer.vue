@@ -147,7 +147,7 @@ const testSentence: Sentence = {
   translation: "lorem ipsum dolor sit amet",
   confidence: 30,
   picture: "",
-  page_number: "54",
+  page_number: "",
   page_overlay: {},
   comment: "lorem ipsum",
   tags: ["lorem", "ipsum"],
@@ -422,22 +422,6 @@ export default defineComponent({
         this.$router.go(0); // Force reload
       }, 100);
     },
-    // updateSelectedTextContent() {
-    //   const pageSelect: any = this.$refs.pageSelect;
-    //   console.log("@updateSelectedTextContent.1", {pageSelect, selectedTextContent: pageSelect?.selectedTextContent});
-    //   if (!pageSelect || pageSelect.selectedTextContent) {
-    //     console.log("@updateSelectedTextContent.2");
-    //     return;
-    //   }
-    //   // The selected text did not populate in for some reason, so let's do that
-    //   const page = this.pageList[pageSelect.modelValue];
-    //   console.log("@updateSelectedTextContent.3", {page, modelValue: pageSelect.modelValue, pageSelect});
-    //   if (page) {
-    //     console.log("@updateSelectedTextContent.4");
-    //     pageSelect.selectedTextContent = page.label || pageInfoList.number;
-    //     console.log("Applied patch for page selection box");
-    //   }
-    // },
   }
 });
 </script>

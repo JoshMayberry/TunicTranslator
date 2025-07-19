@@ -102,7 +102,7 @@ export default defineComponent({
     ImageOverlayEditor,
   },
   props: {
-    pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true }
+    pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true },
   },
   data() {
     return {

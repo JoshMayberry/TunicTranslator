@@ -4,15 +4,16 @@
 
     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
       <div
-        v-for="page_number in 56"
-        :key="page_number - 1"
+        v-for="pageInfo of pageInfoList"
+        :key="pageInfo.number"
         class="flex items-center space-x-2"
       >
         <mcw-checkbox
-          :id="`page-${page_number - 1}`"
-          v-model="settings.found_pages[page_number - 1]"
+          :id="`page-info-${pageInfo.number}`"
+          v-model="settings.found_pages[pageInfo.number]"
+          :value="pageInfo.number"
         />
-        <label :for="`page-${page_number - 1}`">Page {{ page_number - 1 }}</label>
+        <label :for="`page-info-${pageInfo.number}`">{{ pageInfo.label }}</label>
       </div>
     </div>
   </div>
@@ -26,10 +27,13 @@
 import { defineComponent, watch } from "vue";
 import debounce from "lodash.debounce";
 import { Settings } from "@/server/settting";
-import { updatePageInfoList } from "@/models/PageInfo";
+import { PageInfo, pageInfoList, updatePageInfoList } from "@/models/PageInfo";
 
 export default defineComponent({
   name: "PageCheckboxList",
+  props: {
+    pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true },
+  },
   data() {
     return {
       settings: {
@@ -66,9 +70,9 @@ export default defineComponent({
         const res = await fetch("/api/setting");
         const data = await res.json();
 
-        const filledPages: Record<string, boolean> = {};
-        for (let index = 0; index <= 55; index++) {
-          filledPages[index] = data.found_pages?.[index] || false;
+       const filledPages: Record<string, boolean> = {};
+        for (const pageInfo of Object.values(pageInfoList)) {
+          filledPages[pageInfo.number] = data.found_pages?.[pageInfo.number] || false;
         }
 
         this.settings = {
