@@ -27,6 +27,14 @@ export interface Sentence {
   tags: Array<string>
 }
 
+export interface SentenceTransfer {
+  id?: number
+  title: string
+  word_list: Array<number | string | null>
+  page_number: string
+  page_overlay: PageOverlay
+}
+
 export interface DbSentence {
   id: number
   order: number,

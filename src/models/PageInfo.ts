@@ -509,7 +509,7 @@ export const pageInfoList: Record<string, PageInfo> = {
     number: `o10`,
     label: `Other: Siege Engine`,
     isFound: false,
-    imagePath: `/other/siege Engine.jpg`,
+    imagePath: `/other/siege engine.jpg`,
   },
   o11: {
     number: `o11`,

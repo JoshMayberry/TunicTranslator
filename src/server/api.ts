@@ -2,9 +2,10 @@ import cors from "cors"
 import express from "express"
 import bodyParser from "body-parser"
 import { soundGetAll, soundSave, soundSaveGuess } from "./sound"
-import { sentenceGetAll, sentenceSave, sentenceGetById, Sentence, SoundSentenceUsage } from "./sentence"
+import { sentenceGetAll, sentenceSave, sentenceGetById } from "./sentence"
 import { getRupeeInnerValue, getRupeeOuterValue } from "@/models/Rupee"
 import { settingGetAll, settingSave } from "./setting"
+import { Sentence, SoundSentenceUsage } from "./types"
 
 export const app = express()
 app.use(cors())

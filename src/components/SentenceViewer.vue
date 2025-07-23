@@ -101,7 +101,7 @@
         <mcw-button @click="useThreholdColors = !useThreholdColors">Toggle<br>Threshold</mcw-button>
         <mcw-button @click="onDeselect" :disabled="selectedRupeeIndex === undefined">Deselect</mcw-button>
         <mcw-button @click="showSoundEditor = !showSoundEditor" :disabled="!selectedRupee">Edit Sound</mcw-button>
-        <mcw-button @click="onDuplicate" :disabled="!selectedRupee">Duplicate</mcw-button>
+        <mcw-button @click="onDuplicate" :disabled="selectedRupeeIndex === undefined">Duplicate</mcw-button>
         <mcw-button @click="onAddRupee">Add Rupee</mcw-button>
         <mcw-button @click="onAddSpace">Add Space</mcw-button>
         <mcw-button @click="onAddText('text')">Add Text</mcw-button>
@@ -259,6 +259,7 @@ export default defineComponent({
       soundEditedOuter: boolean,
       canEditSound: boolean,
     } {
+      console.log(this)
     return {
       sentence: testSentence,
       rupeePlainText: "dolor sit",
@@ -277,7 +278,7 @@ export default defineComponent({
       confidenceCatalog: {},
       useThreholdColors: true,
       openEmojiMenu: false,
-      emojiOptions: ["📄"],
+      emojiOptions: ["📄", "🗡️", "🔑", "ℹ️", "➡️", "🔲"],
       innerSoundValue: "",
       outerSoundValue: "",
       soundEditedInner: false,
@@ -360,7 +361,7 @@ export default defineComponent({
   },
   watch: {
     rupeePlainText(val: string) {
-      console.log("rupeePlainText updated:", this.selectedRupeeIndex, val)
+      // console.log("rupeePlainText updated:", this.selectedRupeeIndex, val)
       if (
         this.selectedRupeeIndex !== undefined &&
         typeof this.sentence.word_list[this.selectedRupeeIndex] === "string"
@@ -513,11 +514,7 @@ export default defineComponent({
         this.lastSaved = new Date();
         if (this.sentence.id === undefined) {
           this.sentence.id = result.id;
-        }
-        
-        if (this.sentence.id === undefined) {
-          this.sentence.id = result.id;
-          this.router.replace({ path: `/sentence/${result.id}` }); // shallow update
+          // window.history.replaceState({}, '', `/sentence/${result.id}`); // Does not trigger the router, but messes up future routing?
         }
 
       } catch (err) {

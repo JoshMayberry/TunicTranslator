@@ -294,5 +294,6 @@ export default defineComponent({
 <style>
 .sentence-tooltip .mdc-tooltip__surface {
   max-width: 50vw;
+  max-height: 70vh;
 }
 </style>

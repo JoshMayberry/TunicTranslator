@@ -4,6 +4,7 @@ import SentenceViewer from '../components/SentenceViewer.vue'
 import SoundList from '../components/SoundList.vue'
 import Settings from '../components/Settings.vue'
 import SentenceList from '../components/SentenceList.vue'
+import Transfer from '../components/Transfer.vue'
 
 
 export const routeDefinitions = [
@@ -34,6 +35,11 @@ export const routeDefinitions = [
     path: '/settings',
     component: Settings,
     meta: { navigationLabel: 'Settings' }
+  },
+  {
+    path: '/transfer',
+    component: Transfer,
+    meta: { navigationLabel: 'Transfer' }
   }
 ]
 
