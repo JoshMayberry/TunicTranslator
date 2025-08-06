@@ -57,6 +57,7 @@ export default defineComponent({
     isWord: { type: Boolean, default: true },
     disabled: { type: Boolean, default: false },
     
+    confidence: { type: Number, default: undefined },
     confidenceCatalog: { type: Object as () => Record<number, number>, default: {} },
     soundCatalog: { type: Object as () => Record<number, string>, default: {} },
     useThreholdColors: { type: Boolean, default: false },
@@ -110,6 +111,7 @@ export default defineComponent({
   watch: {
     rupee: {
       handler() {
+        if (!this.$refs.emeraldCanvas) return;
         this.update();
       },
       immediate: false,  // Wait until mounted to listen
@@ -117,11 +119,19 @@ export default defineComponent({
     },
     confidenceCatalog: {
       handler() {
+        if (!this.$refs.emeraldCanvas) return;
         this.update();
       },
       immediate: false,  // Wait until mounted to listen
       deep: true
-    }
+    },
+    confidence: {
+      handler() {
+        if (!this.$refs.emeraldCanvas) return;
+        this.update();
+      },
+      immediate: false,  // Wait until mounted to listen
+    },
   },
   methods: {
     reset() {
@@ -508,12 +518,12 @@ export default defineComponent({
         }
       }
 
-      if (!this.useThreholdColors || !Object.keys(this.confidenceCatalog).length) {
+      if (!this.useThreholdColors || (!Object.keys(this.confidenceCatalog).length && (this.confidence === undefined))) {
         return normalColor;
       }
 
       const soundId = this.getSoundId(isInner);
-      const confidence = this.confidenceCatalog[soundId];
+      const confidence = (this.confidence !== undefined ? this.confidence : this.confidenceCatalog[soundId]);
 
       if (!confidence || (confidence < 0)) {
         return normalColor;

@@ -2,7 +2,7 @@ import cors from "cors"
 import express from "express"
 import bodyParser from "body-parser"
 import { soundGetAll, soundSave, soundSaveGuess } from "./sound"
-import { wordGetAll, wordSave } from "./word"
+import { wordGetAll, wordSave, wordSaveGuess } from "./word"
 import { sentenceGetAll, sentenceSave, sentenceGetById } from "./sentence"
 import { getRupeeInnerValue, getRupeeOuterValue } from "@/models/Rupee"
 import { settingGetAll, settingSave } from "./setting"
@@ -33,6 +33,10 @@ app.post("/sound/update-guess", async (req, res) => {
 app.get("/word", async (req, res) => res.json(await wordGetAll()))
 app.post("/word", async (req, res) => {
   await wordSave(req.body)
+  res.sendStatus(200)
+})
+app.post("/word/update-guess", async (req, res) => {
+  await wordSaveGuess(req.body)
   res.sendStatus(200)
 })
 

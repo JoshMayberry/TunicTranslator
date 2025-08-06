@@ -34,6 +34,7 @@
               :circle-theory="circleTheory"
               :use-word-guess="useWordGuess"
               :word-guess-catalog="wordGuessCatalog"
+              :word-confidence-catalog="wordConfidenceCatalog"
             />
             <span class="font-mono" style="margin-top: auto; margin-bottom: auto;">: {{ s.count }}</span>
           </div>
@@ -47,6 +48,7 @@
 import { Sentence, SoundSentenceUsage, Sound, CircleTheory, Word } from "@/server/types";
 import { defineComponent } from "vue";
 import RupeeSentence from './RupeeSentence.vue';
+import TranslationSentence from "./TranslationSentence.vue";
 
 interface Metrics {
   averageConfidence: number;
@@ -59,6 +61,7 @@ export default defineComponent({
   name: "Dashboard",
   components: {
     RupeeSentence,
+    TranslationSentence,
   },
   data() {
     return {
@@ -72,6 +75,7 @@ export default defineComponent({
       confidenceCatalog: {} as Record<number, number>,
       soundCatalog: {} as Record<number, string>,
       wordGuessCatalog: {} as Record<string, string>,
+      wordConfidenceCatalog: {} as Record<string, number>,
     };
   },
   props: {
@@ -97,6 +101,9 @@ export default defineComponent({
       const wordList = await res.json();
       this.wordGuessCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, string] {
         return [word.combined_ids, word.meaning];
+      }));
+      this.wordConfidenceCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, number] {
+        return [word.combined_ids, word.confidence];
       }));
 
       res = await fetch('/api/sentence');

@@ -79,7 +79,19 @@
                 <mcw-tooltip
                   :id="`tooltip-sound-${soundUsage.sentenceId}-${i}-${j}`"
                   :persistent="true"
-                >Id: {{ soundUsage.sentenceId }}, Words: {{ soundUsage.usageList?.length || 0 }}; {{ getSentence(wordUsage.word) }}</mcw-tooltip>
+                >
+                  <span>Id: {{ soundUsage.sentenceId }}, Words: {{ soundUsage.usageList?.length || 0 }};</span>
+                  <TranslationSentence
+                    :rupee-id-list="wordUsage.word"
+                    :sound-catalog="soundCatalog"
+                    :word-guess-catalog="wordGuessCatalog"
+                    :word-confidence-catalog="wordConfidenceCatalog"
+                    :use-threshold-colors="false"
+                    :circle-theory="circleTheory"
+                    :use-word-guess="false"
+                    :dark-mode="false"
+                  />
+                </mcw-tooltip>
               </teleport>
               <div
                 :aria-describedby="`tooltip-sound-${soundUsage.sentenceId}-${i}-${j}`"
@@ -90,7 +102,10 @@
                   :highlight-sound="soundUsage.soundId"
                   :circle-theory="circleTheory"
                   :use-word-guess="false"
+                  :sound-catalog="{}"
+                  :confidence-catalog="{}"
                   :word-guess-catalog="wordGuessCatalog"
+                  :word-confidence-catalog="wordConfidenceCatalog"
                   @select:rupee="goToUsage(soundUsage, wordUsage.wordStartIndex + $event.index)"
                 />
               </div>
@@ -107,9 +122,10 @@ import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
 import RupeeSentence from "./RupeeSentence.vue";
 import { useRoute, useRouter } from "vue-router";
-import { Sentence, SoundSentenceUsage, Sound, SoundType, CircleTheory, Word } from "@/server/types";
-import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, PossibleRupeeValue, Rupee } from "@/models/Rupee";
+import { SoundSentenceUsage, Sound, SoundType, CircleTheory, Word } from "@/server/types";
+import { getRupeeType, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
+import TranslationSentence from "./TranslationSentence.vue";
 
 interface SoundRow {
   rupee: Rupee
@@ -130,6 +146,7 @@ export default defineComponent({
   components: {
     RupeeDisplay,
     RupeeSentence,
+    TranslationSentence,
   },
   data() {
     return {
@@ -150,6 +167,7 @@ export default defineComponent({
       showSoundContext: false,
       preSelectedIdRaw: "" as string,
       wordGuessCatalog: {} as Record<string, string>,
+      wordConfidenceCatalog: {} as Record<string, number>,
     };
   },
   props: {
@@ -236,6 +254,9 @@ export default defineComponent({
         const wordList = await res.json();
         this.wordGuessCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, string] {
           return [word.combined_ids, word.meaning];
+        }));
+        this.wordConfidenceCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, number] {
+          return [word.combined_ids, word.confidence];
         }));
       } catch (err) {
         console.error("Failed to load sentence usages", err);
@@ -334,9 +355,6 @@ export default defineComponent({
     },
     getRupeeType(representation: number): SoundType {
       return getRupeeType(representation);
-    },
-    getSentence(rupeeIdList: Array<PossibleRupeeValue>): string {
-      return getTranslation(this.soundCatalog, this.wordGuessCatalog, rupeeIdList, this.circleTheory, false)
     },
     getColor(confidence: number): string {
       if (!this.useThreholdColors) {

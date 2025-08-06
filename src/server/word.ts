@@ -53,3 +53,20 @@ export function wordSave(data: Word): Promise<void> {
     });
   });
 }
+
+export function wordSaveGuess(data: Word): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(`
+      INSERT OR REPLACE INTO word
+      (combined_ids, meaning, confidence)
+      VALUES (?, ?, ?)
+    `, [
+      data.combined_ids,
+      data.meaning,
+      data.confidence,
+    ], err => {
+      if (err) return reject(err)
+      resolve()
+    })
+  })
+}

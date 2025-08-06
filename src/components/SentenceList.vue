@@ -36,7 +36,15 @@
                   :persistent="true"
                   class="sentence-tooltip"
                 >
-                  <span>{{ getSentence(row.word_list) }}</span>
+                  <TranslationSentence
+                    :rupee-id-list="row.word_list"
+                    :sound-catalog="soundCatalog"
+                    :word-guess-catalog="wordGuessCatalog"
+                    :word-confidence-catalog="wordConfidenceCatalog"
+                    :circle-theory="circleTheory"
+                    :use-word-guess="useWordGuess"
+                    :dark-mode="true"
+                  />
                   <template v-if="row.translation">
                     <hr>
                     <span>{{ row.translation }}</span>
@@ -87,8 +95,9 @@ import ImageOverlayEditor from "./ImageOverlayEditor.vue";
 import { useRouter } from "vue-router";
 import { CircleTheory, PageOverlay, Sentence, Sound, Word } from "@/server/types";
 import debounce from "lodash.debounce";
-import { getRupeeInnerValue, getRupeeOuterValue, getTranslation, PossibleRupeeValue } from "@/models/Rupee";
+import { PossibleRupeeValue } from "@/models/Rupee";
 import { PageInfo } from "@/models/PageInfo";
+import TranslationSentence from "./TranslationSentence.vue";
 
 interface SentenceRow {
   id: number
@@ -108,6 +117,7 @@ export default defineComponent({
   components: {
     RupeeSentence,
     ImageOverlayEditor,
+    TranslationSentence,
   },
   props: {
     pageInfoList: { type: Object as () => Record<string, PageInfo>, required: true },
@@ -128,6 +138,7 @@ export default defineComponent({
       router: useRouter(),
       soundCatalog: {} as Record<number, string>,
       wordGuessCatalog: {} as Record<string, string>,
+      wordConfidenceCatalog: {} as Record<string, number>,
       useThresholdColors: true as boolean,
       isEditing: false as boolean,
       lastSortedCache: [] as SentenceRow[],
@@ -198,6 +209,9 @@ export default defineComponent({
         this.wordGuessCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, string] {
           return [word.combined_ids, word.meaning];
         }));
+        this.wordConfidenceCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, number] {
+          return [word.combined_ids, word.confidence];
+        }));
 
         res = await fetch('/api/sentence');
         const sentenceList: Sentence[] = await res.json();
@@ -255,9 +269,6 @@ export default defineComponent({
     },
     selectRow(row: SentenceRow) {
       this.router.push(`/sentence-viewer/${row.id}`);
-    },
-    getSentence(rupeeIdList: Array<PossibleRupeeValue>): string {
-      return getTranslation(this.soundCatalog, this.wordGuessCatalog, rupeeIdList, this.circleTheory, this.useWordGuess)
     },
   }
 })

@@ -1,13 +1,13 @@
 <template>
   <div class="sentence-display" :class="highlightOnHover ? 'sentence-display--highlight-hover' : ''" style="style">
-    <template v-for="(wordGroup, groupIndex) in groupedRupeeList" :key="groupIndex">
+    <template v-for="(sentenceWord, groupIndex) in groupedRupeeList" :key="groupIndex">
       <div class="sentence-word-wrapper">
         <div class="word-display">
-          <template v-for="(rupeeId, index) in wordGroup" :key="`${groupIndex}-${index}`">
+          <template v-if="sentenceWord?.word?.length" v-for="(rupeeId, index) in sentenceWord.word" :key="`${groupIndex}-${index}`">
             <span
               class="sentence-item-wrapper"
-              :class="{ selected: index === selectedIndex }"
-              @click="() => handleClick(rupeeId, index)"
+              :class="{ selected: (sentenceWord.indexStart + index) === selectedIndex }"
+              @click="() => handleClick(rupeeId, groupIndex, index, sentenceWord)"
               :aria-describedby="(tooltipId !== -1) ?`tooltip-sentence-rupee-${tooltipId}-${index}` : ''"
             >
                 <template v-if="typeof rupeeId == 'number'">
@@ -16,7 +16,16 @@
                     :id="`tooltip-sentence-rupee-${tooltipId}-${index}`"
                     :persistent="true"
                   >
-                    <span>{{ getSentenceTranslation([rupeeId], false) }}</span>
+                    <TranslationSentence
+                      :rupee-id-list="[rupeeId]"
+                      :sound-catalog="soundCatalog"
+                      :word-guess-catalog="wordGuessCatalog"
+                      :word-confidence-catalog="wordConfidenceCatalog"
+                      :use-threshold-colors="useThresholdColors"
+                      :circle-theory="circleTheory"
+                      :use-word-guess="false"
+                      :dark-mode="false"
+                    />
                   </mcw-tooltip>
                 </teleport>
                 <RupeeDisplay
@@ -29,7 +38,8 @@
                   :empty-color="emptyColor"
                   :highlight-sound="highlightSound"
                   :sound-color="soundColor"
-                  :use-threhold-colors="useThreholdColors"
+                  :use-threhold-colors="useThresholdColors"
+                  :confidence="confidence"
                   :confidence-catalog="confidenceCatalog"
                   :sound-catalog="soundCatalog"
                   :is-debug="false"
@@ -47,7 +57,8 @@
                   :empty-color="emptyColor"
                   :highlight-sound="highlightSound"
                   :sound-color="soundColor"
-                  :use-threhold-colors="useThreholdColors"
+                  :use-threhold-colors="useThresholdColors"
+                  :confidence="confidence"
                   :confidence-catalog="confidenceCatalog"
                   :sound-catalog="soundCatalog"
                   :is-debug="false"
@@ -59,11 +70,28 @@
               <span v-else class="gap-block sentence-item"> </span>
             </span>
           </template>
+           <span
+              v-else 
+              class="sentence-item-wrapper"
+              :class="{ selected: sentenceWord.indexStart === selectedIndex }"
+              @click="() => handleClick(null, groupIndex, sentenceWord.indexStart, sentenceWord)"
+              :style="'height: 100%;'"
+            >
+            <span class="gap-block sentence-item"> </span>
+          </span>
         </div>
-        <span v-if="isWordMode"
-          class="word-translation"
-          @click="() => handleClickWord(wordGroup, groupIndex)"
-        >{{ getSentenceTranslation(wordGroup, useWordGuess) }}</span>
+        <TranslationSentence
+          v-if="isWordMode"
+          :rupee-id-list="sentenceWord.word"
+          :sound-catalog="soundCatalog"
+          :word-guess-catalog="wordGuessCatalog"
+          :word-confidence-catalog="wordConfidenceCatalog"
+          :circle-theory="circleTheory"
+          :use-word-guess="useWordGuess"
+          :use-threshold-colors="useThresholdColors"
+          :dark-mode="false"
+          @click="() => handleClickWord(sentenceWord, groupIndex)"
+        />
       </div>
     </template>
   </div>
@@ -72,13 +100,17 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
-import { getRupeeInnerValue, getRupeeOuterValue, getSentence, getTranslation, PossibleRupeeValue, Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, getSentence, PossibleRupeeValue, Rupee, SentenceWord } from "@/models/Rupee";
 import { CircleTheory } from "@/server/types"
+import TranslationSentence from "./TranslationSentence.vue";
 
 export default defineComponent({
   name: "RupeeSentence",
-  components: { RupeeDisplay },
-  emits: ["select:rupee", "select:space", "select:text"],
+  components: {
+    RupeeDisplay,
+    TranslationSentence,
+  },
+  emits: ["select:rupee", "select:space", "select:text", "select:word"],
   props: {
     rupeeList: { type: Array as () => Array<PossibleRupeeValue>, required: true },
     style: { },
@@ -93,16 +125,18 @@ export default defineComponent({
     highlightOnHover: { type: Boolean, default: false },
     highlightSound: { type: Number, default: -1 },
     explodeRupee: { type: Boolean, default: false },
-    useThreholdColors: { type: Boolean, default: false },
+    useThresholdColors: { type: Boolean, default: false },
     useWordGuess: { type: Boolean, default: false },
     isWordMode: { type: Boolean, default: false },
-    confidenceCatalog: { type: Object as () => Record<number, number>, default: {} },
-    soundCatalog: { type: Object as () => Record<number, string>, default: {} },
-    wordGuessCatalog: { type: Object as () => Record<number, string>, default: {} },
+    confidence: { type: Number, default: undefined },
+    confidenceCatalog: { type: Object as () => Record<number, number>, required: true },
+    soundCatalog: { type: Object as () => Record<number, string>, required: true },
+    wordGuessCatalog: { type: Object as () => Record<number, string>, required: true },
+    wordConfidenceCatalog: { type: Object as () => Record<number, number>, required: true },
     tooltipId: { type: Number, default: -1 },
   },
   computed: {
-    groupedRupeeList(): Array<Array<PossibleRupeeValue>> {
+    groupedRupeeList(): Array<SentenceWord> {
       return getSentence(this.rupeeList);
     }
   },
@@ -119,20 +153,17 @@ export default defineComponent({
     shouldShowSecondRupee(representation: number): boolean {
       return getRupeeOuterValue(representation) != 0;
     },
-    handleClick(item: PossibleRupeeValue, index: number) {
+    handleClick(item: PossibleRupeeValue, groupIndex: number, index: number, sentenceWord: SentenceWord) {
       if (typeof item === "number") {
-        this.$emit("select:rupee", { rupee: item, index });
+        this.$emit("select:rupee", { rupee: item, groupIndex, index, sentenceWord });
       } else if (typeof item === "string") {
-        this.$emit("select:text", { text: item, index });
+        this.$emit("select:text", { text: item, groupIndex, index, sentenceWord });
       } else {
-        this.$emit("select:space", { index });
+        this.$emit("select:space", { index, groupIndex, sentenceWord });
       }
     },
-    handleClickWord(wordGroup: PossibleRupeeValue[], groupIndex: number) {
-      console.log("TODO: Display a popup to allow for editing the word", {wordGroup, groupIndex});
-    },
-    getSentenceTranslation(rupeeIdList: Array<PossibleRupeeValue>, useWordGuess: boolean): string {
-      return getTranslation(this.soundCatalog, this.wordGuessCatalog, rupeeIdList, this.circleTheory, useWordGuess)
+    handleClickWord(sentenceWord: SentenceWord, groupIndex: number) {
+      this.$emit("select:word", { sentenceWord, groupIndex });
     },
   },
 });
@@ -156,28 +187,27 @@ export default defineComponent({
   display: inline-flex;
   flex-direction: column;
   margin-right: 8px; /* spacing between words */
+  height: 100%;
+  cursor: pointer;
 }
 
 .word-display {
   display: flex;
   flex-direction: row;
   align-items: center;
-}
-
-.word-translation {
-  font-size: 12px;
-  color: #888;
-  margin-top: 2px;
-  font-family: monospace;
+  height: 100%;
 }
 
 .text-block {
+  height: 100%;
   font-family: monospace;
   border-radius: 4px;
   color: #333;
 }
 
 .gap-block {
+  margin-top: auto;
+  margin-bottom: auto;
   width: 16px;
   height: 16px;
   line-height: 16px;

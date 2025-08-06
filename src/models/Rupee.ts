@@ -24,6 +24,18 @@ export interface RupeeSegmentState {
   bottomCircle?: boolean   // 1000000000000
 }
 
+export interface TranslationWord {
+  word: Array<PossibleRupeeValue>,
+  text: string,
+  confidence?: number,
+}
+
+export interface SentenceWord {
+  indexStart: number,
+  indexEnd: number,
+  word: Array<PossibleRupeeValue>,
+}
+
 export class Rupee {
   state: RupeeSegmentState
 
@@ -135,30 +147,59 @@ export function getRupeeType(representation: number): SoundType {
   return "mixed";
 }
 
-export function getSentence(rupeeIdList: Array<PossibleRupeeValue>): Array<Array<PossibleRupeeValue>> {
+export function getSentence(rupeeIdList: Array<PossibleRupeeValue>): Array<SentenceWord> {
+  let indexStart = 0
+  let indexCurrent = -1
   let word = [] as Array<PossibleRupeeValue>
-  const sentence = [] as Array<Array<PossibleRupeeValue>>
+  const sentence = [] as Array<SentenceWord>
   for (const rupeeId of rupeeIdList) {
-      if ((rupeeId === undefined) || (rupeeId === null)) {
-        if (word.length) {
-          sentence.push(word);
-        }
-        word = [];
-        continue;
+    indexCurrent++
+    if ((rupeeId === undefined) || (rupeeId === null)) {
+      if (word.length) {
+        sentence.push({
+          indexStart: indexStart,
+          indexEnd: indexCurrent,
+          word,
+        });
       }
+      sentence.push({
+        indexStart: indexCurrent,
+        indexEnd: indexCurrent,
+        word: [],
+      });
 
-      if (typeof rupeeId === "string") {
-        if (word.length) {
-          sentence.push([rupeeId]);
-        }
-        word = [];
-        continue;
+      indexStart = indexCurrent + 1;
+      word = [];
+      continue;
+    }
+
+    if (typeof rupeeId === "string") {
+      if (word.length) {
+        sentence.push({
+          indexStart: indexStart,
+          indexEnd: indexCurrent,
+          word,
+        });
       }
+      sentence.push({
+        indexStart: indexCurrent,
+        indexEnd: indexCurrent,
+        word: [rupeeId],
+      });
 
-      word.push(rupeeId);
+      indexStart = indexCurrent + 1;
+      word = [];
+      continue;
+    }
+
+    word.push(rupeeId);
   }
   if (word.length) {
-    sentence.push(word);
+    sentence.push({
+      indexStart: indexStart,
+      indexEnd: indexCurrent,
+      word,
+    });
   }
   return sentence;
 }
@@ -167,44 +208,30 @@ export function combineWord(word: Array<PossibleRupeeValue>): string {
   return word.map((item) => `${item}`).join("_");
 }
 
-export function getWordGuess(wordGuessCatalog: Record<string, string>, word: Array<PossibleRupeeValue>): string {
-  return wordGuessCatalog[combineWord(word)];
-}
-
-export function getTranslation(soundCatalog: Record<number, string>, wordGuessCatalog: Record<string, string>, rupeeIdList: Array<PossibleRupeeValue>, circleTheory: CircleTheory, useWordGuess: boolean): string {
-  const sentence = [] as Array<string>
-  for (const word of getSentence(rupeeIdList)) {
-    if (typeof word === "string") {
-      sentence.push(word);
-      continue;
+export function getPheneticWord(soundCatalog: Record<number, string>, circleTheory: CircleTheory, word: PossibleRupeeValue[]): string {
+  let pheneticWord = "";
+  for (const rupeeId of word) {
+    if ((rupeeId === undefined) || (rupeeId === null)) {
+      pheneticWord += " ";
+      continue
     }
 
-    if (useWordGuess) {
-      const possibleWord = getWordGuess(wordGuessCatalog, word)
-      if (possibleWord) {
-        sentence.push(possibleWord);
-        continue;
-      }
-    }
-
-    let pheneticWord = ""
-    for (const rupeeId of word) {
-      if (rupeeId === 0) {
+    if (rupeeId === 0) {
         pheneticWord += (soundCatalog[rupeeId] || "?");
         continue;
-      }
+    }
 
-      if (typeof rupeeId !== "number") {
-        console.error(`rupeeId should be a number by this point, but it was a ${typeof rupeeId}.`, {rupeeId, word});
+    if (typeof rupeeId === "string") {
+        pheneticWord += rupeeId;
         continue;
-      }
+    }
 
-      let hasOther = false;
-      const inner = getRupeeInnerValue(rupeeId);
-      const outer = getRupeeOuterValue(rupeeId);
-      const hasCircledo = getRupeeCircledo(rupeeId) === 1;
-      const myList = ((circleTheory === "Outer First") && hasCircledo) ? [outer, inner] : [inner, outer];
-      for (const soundId of myList) {
+    let hasOther = false;
+    const inner = getRupeeInnerValue(rupeeId);
+    const outer = getRupeeOuterValue(rupeeId);
+    const hasCircledo = getRupeeCircledo(rupeeId) === 1;
+    const myList = ((circleTheory === "Outer First") && hasCircledo) ? [outer, inner] : [inner, outer];
+    for (const soundId of myList) {
         if (soundId === 0) {
           continue;
         }
@@ -214,12 +241,26 @@ export function getTranslation(soundCatalog: Record<number, string>, wordGuessCa
         }
         pheneticWord += (soundCatalog[soundId] || "?");
         hasOther = true
-      }
-    }
-    if (pheneticWord != "") {
-      sentence.push(pheneticWord);
     }
   }
+  
+  return pheneticWord;
+}
 
-  return sentence.join(" ");
+export function getColorFromConfidence(confidence?: number): string {
+  if (confidence === undefined || confidence === null) {
+    return "black";
+  }
+
+  // Clamp to 0–100
+  confidence = Math.max(0, Math.min(100, confidence));
+
+  // Optional: use a nonlinear scale (e.g., logarithmic) if desired
+  // confidence = Math.log(confidence + 1) / Math.log(101) * 100;
+
+  // Map 0-100 confidence to hue range 0 (red) to 120 (green)
+  const hue = (confidence / 100) * 120;
+
+  // Return HSL color
+  return `hsl(${hue}, 100%, 40%)`;
 }
