@@ -1,3 +1,4 @@
+import { PossibleRupeeValue } from '@/models/Rupee'
 import { db } from './db'
 import { Sentence, DbSentence } from "./types"
 
@@ -25,7 +26,7 @@ export function sentenceEnsureTable(): Promise<void> {
   })
 }
 
-function getWordListFromString(payload?: string): Array<number | string | null> {
+function getWordListFromString(payload?: string): Array<PossibleRupeeValue> {
   if (!payload) return [];
 
   try {
@@ -48,7 +49,7 @@ function getWordListFromString(payload?: string): Array<number | string | null> 
   }
 }
 
-function getStringFromWordList(payload?: Array<number | string | null>): string {
+function getStringFromWordList(payload?: Array<PossibleRupeeValue>): string {
   if (!payload) return "[]";
 
   return JSON.stringify(

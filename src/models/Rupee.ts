@@ -2,6 +2,8 @@
 
 import { SoundType, CircleTheory } from '@/server/types'
 
+export type PossibleRupeeValue = number | string | null;
+
 export interface RupeeSegmentState {
   outer?: {
     bottomRight?: boolean // 1
@@ -133,25 +135,67 @@ export function getRupeeType(representation: number): SoundType {
   return "mixed";
 }
 
-export function getTranslation(soundCatalog: Record<number, string>, rupeeIdList: Array<number | string | null>, circleTheory: CircleTheory): string {
-  let answer = "";
-  let inWord = false
+export function getSentence(rupeeIdList: Array<PossibleRupeeValue>): Array<Array<PossibleRupeeValue>> {
+  let word = [] as Array<PossibleRupeeValue>
+  const sentence = [] as Array<Array<PossibleRupeeValue>>
   for (const rupeeId of rupeeIdList) {
       if ((rupeeId === undefined) || (rupeeId === null)) {
-        answer += " ";
-        inWord = false;
+        if (word.length) {
+          sentence.push(word);
+        }
+        word = [];
         continue;
       }
 
       if (typeof rupeeId === "string") {
-        inWord = false;
-        answer += rupeeId;
+        if (word.length) {
+          sentence.push([rupeeId]);
+        }
+        word = [];
         continue;
       }
 
+      word.push(rupeeId);
+  }
+  if (word.length) {
+    sentence.push(word);
+  }
+  return sentence;
+}
+
+export function combineWord(word: Array<PossibleRupeeValue>): string {
+  return word.map((item) => `${item}`).join("_");
+}
+
+export function getWordGuess(wordGuessCatalog: Record<string, string>, word: Array<PossibleRupeeValue>): string {
+  return wordGuessCatalog[combineWord(word)];
+}
+
+export function getTranslation(soundCatalog: Record<number, string>, wordGuessCatalog: Record<string, string>, rupeeIdList: Array<PossibleRupeeValue>, circleTheory: CircleTheory, useWordGuess: boolean): string {
+  const sentence = [] as Array<string>
+  for (const word of getSentence(rupeeIdList)) {
+    if (typeof word === "string") {
+      sentence.push(word);
+      continue;
+    }
+
+    if (useWordGuess) {
+      const possibleWord = getWordGuess(wordGuessCatalog, word)
+      if (possibleWord) {
+        sentence.push(possibleWord);
+        continue;
+      }
+    }
+
+    let pheneticWord = ""
+    for (const rupeeId of word) {
       if (rupeeId === 0) {
-        inWord = false;
-        answer += (soundCatalog[rupeeId] || "?");
+        pheneticWord += (soundCatalog[rupeeId] || "?");
+        continue;
+      }
+
+      if (typeof rupeeId !== "number") {
+        console.error(`rupeeId should be a number by this point, but it was a ${typeof rupeeId}.`, {rupeeId, word});
         continue;
       }
 
@@ -164,16 +208,18 @@ export function getTranslation(soundCatalog: Record<number, string>, rupeeIdList
         if (soundId === 0) {
           continue;
         }
-        if (hasOther) {
-          answer += "•";
-        } else if (inWord) {
-          answer += "-";
+
+        if (pheneticWord != "") {
+          pheneticWord += (hasOther ? "•" : "-");
         }
-        answer += (soundCatalog[soundId] || "?");
+        pheneticWord += (soundCatalog[soundId] || "?");
         hasOther = true
       }
-      inWord = true
+    }
+    if (pheneticWord != "") {
+      sentence.push(pheneticWord);
+    }
   }
 
-  return answer;
+  return sentence.join(" ");
 }

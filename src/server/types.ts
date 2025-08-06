@@ -1,3 +1,4 @@
+import { PossibleRupeeValue } from "@/models/Rupee"
 
 
 export interface SoundSentenceUsage {
@@ -17,7 +18,7 @@ export interface Sentence {
   id?: number
   order: number,
   title: string
-  word_list: Array<number | string | null>
+  word_list: Array<PossibleRupeeValue>
   translation: string
   confidence: number
   picture: string
@@ -30,7 +31,7 @@ export interface Sentence {
 export interface SentenceTransfer {
   id?: number
   title: string
-  word_list: Array<number | string | null>
+  word_list: Array<PossibleRupeeValue>
   page_number: string
   page_overlay: PageOverlay
 }
@@ -69,6 +70,21 @@ export interface DbSound {
   comment?: string
 }
 
+export interface Word {
+  id: number
+  combined_ids: string
+  meaning: string
+  confidence: number
+  comment: string
+}
+
+export interface DbWord {
+  id: number
+  combined_ids: string
+  meaning?: string
+  confidence?: number
+  comment?: string
+}
 
 export const circleTheoryOptions = [
   "Nothing",

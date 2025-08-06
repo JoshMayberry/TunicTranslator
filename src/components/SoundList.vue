@@ -89,6 +89,8 @@
                   :highlight-on-hover="true"
                   :highlight-sound="soundUsage.soundId"
                   :circle-theory="circleTheory"
+                  :use-word-guess="false"
+                  :word-guess-catalog="wordGuessCatalog"
                   @select:rupee="goToUsage(soundUsage, wordUsage.wordStartIndex + $event.index)"
                 />
               </div>
@@ -105,8 +107,8 @@ import { defineComponent } from "vue";
 import RupeeDisplay from "./RupeeDisplay.vue";
 import RupeeSentence from "./RupeeSentence.vue";
 import { useRoute, useRouter } from "vue-router";
-import { Sentence, SoundSentenceUsage, Sound, SoundType, CircleTheory } from "@/server/types";
-import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, Rupee } from "@/models/Rupee";
+import { Sentence, SoundSentenceUsage, Sound, SoundType, CircleTheory, Word } from "@/server/types";
+import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, PossibleRupeeValue, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
 
 interface SoundRow {
@@ -147,6 +149,7 @@ export default defineComponent({
       thresholdLow: 30,
       showSoundContext: false,
       preSelectedIdRaw: "" as string,
+      wordGuessCatalog: {} as Record<string, string>,
     };
   },
   props: {
@@ -228,7 +231,17 @@ export default defineComponent({
         console.error("Failed to load sentence usages", err);
       }
 
-      console.log("Sounds:", {soundList, soundCatalog: this.soundCatalog, soundSentenceCatalog: this.soundSentenceCatalog, nestedLevel});
+      try {
+        const res = await fetch("/api/word");
+        const wordList = await res.json();
+        this.wordGuessCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, string] {
+          return [word.combined_ids, word.meaning];
+        }));
+      } catch (err) {
+        console.error("Failed to load sentence usages", err);
+      }
+
+      console.log("Sounds:", {soundList, soundCatalog: this.soundCatalog, soundSentenceCatalog: this.soundSentenceCatalog, wordGuessCatalog: this.wordGuessCatalog, nestedLevel});
 
       if (nestedLevel > 1) {
         console.error("@loadData; Nested too deeply");
@@ -322,8 +335,8 @@ export default defineComponent({
     getRupeeType(representation: number): SoundType {
       return getRupeeType(representation);
     },
-    getSentence(rupeeIdList: Array<number | string | null>): string {
-      return getTranslation(this.soundCatalog, rupeeIdList, this.circleTheory)
+    getSentence(rupeeIdList: Array<PossibleRupeeValue>): string {
+      return getTranslation(this.soundCatalog, this.wordGuessCatalog, rupeeIdList, this.circleTheory, false)
     },
     getColor(confidence: number): string {
       if (!this.useThreholdColors) {

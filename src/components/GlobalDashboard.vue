@@ -32,6 +32,8 @@
               :confidence-catalog="confidenceCatalog"
               :sound-catalog="soundCatalog"
               :circle-theory="circleTheory"
+              :use-word-guess="useWordGuess"
+              :word-guess-catalog="wordGuessCatalog"
             />
             <span class="font-mono" style="margin-top: auto; margin-bottom: auto;">: {{ s.count }}</span>
           </div>
@@ -42,7 +44,7 @@
 </template>
 
 <script lang="ts">
-import { Sentence, SoundSentenceUsage, Sound, CircleTheory } from "@/server/types";
+import { Sentence, SoundSentenceUsage, Sound, CircleTheory, Word } from "@/server/types";
 import { defineComponent } from "vue";
 import RupeeSentence from './RupeeSentence.vue';
 
@@ -61,6 +63,7 @@ export default defineComponent({
   data() {
     return {
       loading: true,
+      useWordGuess: false,
       error: "",
       metrics: {} as Metrics,
       soundList: [] as Sound[],
@@ -68,6 +71,7 @@ export default defineComponent({
       soundSentenceCatalog: {} as Record<number, Record<number, Array<SoundSentenceUsage>>>, // {sound_id: {sentence_id: [usage]}}
       confidenceCatalog: {} as Record<number, number>,
       soundCatalog: {} as Record<number, string>,
+      wordGuessCatalog: {} as Record<string, string>,
     };
   },
   props: {
@@ -81,13 +85,6 @@ export default defineComponent({
     async loadData() {
       let res = await fetch("/api/sound");
       this.soundList = await res.json();
-
-      res = await fetch('/api/sentence');
-      this.sentenceList = await res.json();
-      
-      res = await fetch("/api/sound-sentence-catalog");
-      this.soundSentenceCatalog = await res.json();
-
       
       this.soundCatalog = Object.fromEntries(this.soundList.map(function(sound: Sound): [number, string] {
         return [sound.id, sound.guessed_sound];
@@ -95,6 +92,18 @@ export default defineComponent({
       this.confidenceCatalog = Object.fromEntries(this.soundList.map(function(sound: Sound): [number, number] {
         return [sound.id, sound.confidence];
       }));
+
+      res = await fetch("/api/word");
+      const wordList = await res.json();
+      this.wordGuessCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, string] {
+        return [word.combined_ids, word.meaning];
+      }));
+
+      res = await fetch('/api/sentence');
+      this.sentenceList = await res.json();
+      
+      res = await fetch("/api/sound-sentence-catalog");
+      this.soundSentenceCatalog = await res.json();
     },
     computeMetrics() {
       const totalSentences = this.sentenceList.length;

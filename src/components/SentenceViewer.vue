@@ -21,6 +21,9 @@
           :confidence-catalog="confidenceCatalog"
           :sound-catalog="soundCatalog"
           :circle-theory="circleTheory"
+          :use-word-guess="useWordGuess"
+          :is-word-mode="isWordMode"
+          :word-guess-catalog="wordGuessCatalog"
           :tooltip-id="0"
           @select:rupee="onRupeeClick"
           @select:text="onTextClick"
@@ -99,6 +102,8 @@
         />
         <mcw-button @click="explodeRupee = !explodeRupee">Toggle<br>Explode</mcw-button>
         <mcw-button @click="useThreholdColors = !useThreholdColors">Toggle<br>Threshold</mcw-button>
+        <mcw-button @click="isWordMode = !isWordMode">Toggle<br>Word Mode</mcw-button>
+        <mcw-button @click="useWordGuess = !useWordGuess">Toggle<br>Word Guess</mcw-button>
         <mcw-button @click="onDeselect" :disabled="selectedRupeeIndex === undefined">Deselect</mcw-button>
         <mcw-button @click="showSoundEditor = !showSoundEditor" :disabled="!selectedRupee">Edit Sound</mcw-button>
         <mcw-button @click="onDuplicate" :disabled="selectedRupeeIndex === undefined">Duplicate</mcw-button>
@@ -201,24 +206,10 @@ import { useRoute, useRouter } from "vue-router";
 import RupeeDisplay from './RupeeDisplay.vue';
 import RupeeSentence from './RupeeSentence.vue';
 import ImageOverlayEditor from './ImageOverlayEditor.vue';
-import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, Rupee } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, getRupeeType, getTranslation, PossibleRupeeValue, Rupee } from "@/models/Rupee";
 import debounce from "lodash.debounce";
-import { CircleTheory, PageOverlay, Sentence, Sound } from "@/server/types";
+import { CircleTheory, PageOverlay, Sentence, Sound, Word } from "@/server/types";
 import { PageInfo } from "@/models/PageInfo";
-
-const testSentence: Sentence = {
-  id: undefined,
-  order: 0,
-  title: "test",
-  word_list: [123, 7289, 8, null, 2, "lorem ipsum", 73, 83],
-  translation: "lorem ipsum dolor sit amet",
-  confidence: 30,
-  picture: "",
-  page_number: "",
-  page_overlay: {},
-  comment: "lorem ipsum",
-  tags: ["lorem", "ipsum"],
-};
 
 export default defineComponent({
   name: "SentenceViewer",
@@ -258,10 +249,24 @@ export default defineComponent({
       soundEditedInner: boolean,
       soundEditedOuter: boolean,
       canEditSound: boolean,
+      useWordGuess: boolean,
+      isWordMode: boolean,
+      wordGuessCatalog: Record<string, string>,
     } {
-      console.log(this)
     return {
-      sentence: testSentence,
+      sentence: {
+        id: undefined,
+        order: 0,
+        title: "",
+        word_list: [],
+        translation: "",
+        confidence: 0,
+        picture: "",
+        page_number: "",
+        page_overlay: {},
+        comment: "",
+        tags: [],
+      },
       rupeePlainText: "dolor sit",
       selectedRupeeIndex: 2,
       snackbarShow: false,
@@ -286,6 +291,9 @@ export default defineComponent({
       innerSoundConfidence: 0,
       outerSoundConfidence: 0,
       canEditSound: false,
+      useWordGuess: true,
+      isWordMode: false,
+      wordGuessCatalog: {},
     };
   },
   computed: {
@@ -350,13 +358,19 @@ export default defineComponent({
     });
   },
   async mounted() {
-    const res = await fetch("/api/sound");
+    let res = await fetch("/api/sound");
     const soundList = await res.json();
     this.soundCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, string] {
       return [sound.id, sound.guessed_sound];
     }));
     this.confidenceCatalog = Object.fromEntries(soundList.map(function(sound: Sound): [number, number] {
       return [sound.id, sound.confidence];
+    }));
+
+    res = await fetch("/api/word");
+    const wordList = await res.json();
+    this.wordGuessCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, string] {
+      return [word.combined_ids, word.meaning];
     }));
   },
   watch: {
@@ -524,8 +538,8 @@ export default defineComponent({
         this.isSaving = false;
       }
     },
-    getSentence(rupeeIdList: Array<number | string | null>): string {
-      return getTranslation(this.soundCatalog, rupeeIdList, this.circleTheory)
+    getSentence(rupeeIdList: Array<PossibleRupeeValue>): string {
+      return getTranslation(this.soundCatalog, this.wordGuessCatalog, rupeeIdList, this.circleTheory, this.useWordGuess)
     },
     onNewSentence() {
       this.$router.push('/sentence-viewer'); // Navigate

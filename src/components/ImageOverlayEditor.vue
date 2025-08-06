@@ -8,6 +8,8 @@
       @mousemove="onDrag"
       @mouseup="stopDragging"
       @mouseleave="stopDragging"
+      @wheel="onWheel"
+      @dblclick="zoom = 1; draw()"
     ></canvas>
   </div>
 </template>
@@ -34,6 +36,7 @@ export default defineComponent({
         imageWidth: 0,
         imageHeight: 0,
         internalOverlay: this.overlay,
+        zoom: 1.0,
     };
   },
   watch: {
@@ -99,44 +102,51 @@ export default defineComponent({
             const sw = width * this.imageWidth;
             const sh = height * this.imageHeight;
 
-            canvas.width = sw;
-            canvas.height = sh;
+            canvas.width = sw * this.zoom;
+            canvas.height = sh * this.zoom;
 
+            ctx.save();
+            ctx.scale(this.zoom, this.zoom);
             ctx.drawImage(this.image, sx, sy, sw, sh, 0, 0, sw, sh);
         } else {
             // Normal full image draw
-            canvas.width = this.imageWidth;
-            canvas.height = this.imageHeight;
+            canvas.width = this.imageWidth * this.zoom;
+            canvas.height = this.imageHeight * this.zoom;
 
+            ctx.save();
+            ctx.scale(this.zoom, this.zoom);
             ctx.drawImage(this.image, 0, 0, this.imageWidth, this.imageHeight);
+            ctx.restore();
 
             // Draw overlay rectangle
             ctx.save();
+            ctx.scale(this.zoom, this.zoom);
+
             ctx.strokeStyle = "blue";
             ctx.lineWidth = 2;
             ctx.fillStyle = "rgba(0, 0, 255, 0.2)";
             ctx.fillRect(x * this.imageWidth, y * this.imageHeight, width * this.imageWidth, height * this.imageHeight);
             ctx.strokeRect(x * this.imageWidth, y * this.imageHeight, width * this.imageWidth, height * this.imageHeight);
+
             ctx.restore();
         }
     },
     startDragging(event: MouseEvent) {
         if (this.shouldApplyOverlayCrop) return;
         const rect = (this.$refs.canvas as HTMLCanvasElement).getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const x = (event.clientX - rect.left) / this.zoom;
+        const y = (event.clientY - rect.top) / this.zoom;
 
         this.dragStart = { x, y };
         this.dragEnd = { x, y };
         this.isDragging = true;
     },
-
     onDrag(event: MouseEvent) {
         if (!this.isDragging || this.shouldApplyOverlayCrop) return;
 
         const rect = (this.$refs.canvas as HTMLCanvasElement).getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const x = (event.clientX - rect.left) / this.zoom;
+        const y = (event.clientY - rect.top) / this.zoom;
 
         this.dragEnd = { x, y };
 
@@ -155,13 +165,26 @@ export default defineComponent({
         this.internalOverlay = overlay;
         this.draw();
     },
-
     stopDragging() {
         if (!this.isDragging || this.shouldApplyOverlayCrop) return;
         this.isDragging = false;
         this.$emit("update:overlay", { ...this.internalOverlay });
     },
+    onWheel(event: WheelEvent) {
+      event.preventDefault();
 
+      const delta = Math.sign(event.deltaY);
+      const zoomStep = 0.1;
+
+      // Clamp zoom between 0.2 and 5
+      if (delta > 0) {
+        this.zoom = Math.max(0.2, this.zoom - zoomStep);
+      } else {
+        this.zoom = Math.min(5, this.zoom + zoomStep);
+      }
+
+      this.draw();
+    },
   },
 });
 </script>

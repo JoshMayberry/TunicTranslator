@@ -55,6 +55,8 @@
                 :use-threhold-colors="useThresholdColors"
                 :confidence-catalog="confidenceCatalog"
                 :circle-theory="circleTheory"
+                :use-word-guess="useWordGuess"
+                :word-guess-catalog="wordGuessCatalog"
                 @click="selectRow(row)"
               />
             </td>
@@ -83,16 +85,16 @@ import { defineComponent } from "vue";
 import RupeeSentence from "./RupeeSentence.vue";
 import ImageOverlayEditor from "./ImageOverlayEditor.vue";
 import { useRouter } from "vue-router";
-import { CircleTheory, PageOverlay, Sentence, Sound } from "@/server/types";
+import { CircleTheory, PageOverlay, Sentence, Sound, Word } from "@/server/types";
 import debounce from "lodash.debounce";
-import { getRupeeInnerValue, getRupeeOuterValue, getTranslation } from "@/models/Rupee";
+import { getRupeeInnerValue, getRupeeOuterValue, getTranslation, PossibleRupeeValue } from "@/models/Rupee";
 import { PageInfo } from "@/models/PageInfo";
 
 interface SentenceRow {
   id: number
   order: number
   title: string
-  word_list: Array<number | string | null>
+  word_list: Array<PossibleRupeeValue>
   translation: string
   confidence: number
   picture: string
@@ -125,10 +127,11 @@ export default defineComponent({
       confidenceCatalog: {} as Record<number, number>,
       router: useRouter(),
       soundCatalog: {} as Record<number, string>,
+      wordGuessCatalog: {} as Record<string, string>,
       useThresholdColors: true as boolean,
       isEditing: false as boolean,
       lastSortedCache: [] as SentenceRow[],
-
+      useWordGuess: true as boolean,
     };
   },
   async mounted() {
@@ -190,6 +193,12 @@ export default defineComponent({
           return [sound.id, sound.confidence];
         }));
 
+        res = await fetch("/api/word");
+        const wordList = await res.json();
+        this.wordGuessCatalog = Object.fromEntries(wordList.map(function(word: Word): [string, string] {
+          return [word.combined_ids, word.meaning];
+        }));
+
         res = await fetch('/api/sentence');
         const sentenceList: Sentence[] = await res.json();
         console.log("Sentences:", sentenceList);
@@ -247,8 +256,8 @@ export default defineComponent({
     selectRow(row: SentenceRow) {
       this.router.push(`/sentence-viewer/${row.id}`);
     },
-    getSentence(rupeeIdList: Array<number | string | null>): string {
-      return getTranslation(this.soundCatalog, rupeeIdList, this.circleTheory)
+    getSentence(rupeeIdList: Array<PossibleRupeeValue>): string {
+      return getTranslation(this.soundCatalog, this.wordGuessCatalog, rupeeIdList, this.circleTheory, this.useWordGuess)
     },
   }
 })
